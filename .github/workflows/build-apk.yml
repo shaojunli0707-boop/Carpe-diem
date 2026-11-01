@@ -18,33 +18,23 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Gradle & Build APK
+      - name: Install Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.4'
 
-      - name: Assemble Debug APK
+      - name: Fix Icon & Assemble Debug APK
         run: |
-          # 自动查找 build.gradle 所在的真实目录（解决多套一层文件夹的问题）
-          GRADLE_FILE=$(find . -maxdepth 3 -name "settings.gradle" | head -n 1)
-          if [ -z "$GRADLE_FILE" ]; then
-            echo "❌ 错误：在仓库中没有找到 settings.gradle 或 build.gradle，请检查文件是否已上传并 Commit！"
-            ls -la
-            exit 1
-          fi
-          PROJECT_DIR=$(dirname "$GRADLE_FILE")
-          echo "✅ 找到项目目录: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
+          # 1. 自动同意 GitHub 自带 Android SDK 的所有协议（无需安装旧插件）
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           
-          # 将伪装成 png 的 svg 图标删除并替换为合规图标，防止 AAPT2 编译崩溃
-          rm -f app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          # 2. 生成一个合规的 PNG 图标，覆盖掉原压缩包里格式错误的图标文件，防止编译崩溃
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" | base64 -d > app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           
-          # 执行打包并关闭严格的资源校验
-          gradle assembleDebug -Pandroid.aapt2FromMavenOverride="" --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/shanji-debug.apk
+          # 3. 开始打包编译 APK
+          gradle assembleDebug --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk ./shanji-debug.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
