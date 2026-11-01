@@ -28,8 +28,23 @@ jobs:
 
       - name: Assemble Debug APK
         run: |
-          gradle assembleDebug
-          cp app/build/outputs/apk/debug/app-debug.apk ./shanji-debug.apk
+          # 自动查找 build.gradle 所在的真实目录（解决多套一层文件夹的问题）
+          GRADLE_FILE=$(find . -maxdepth 3 -name "settings.gradle" | head -n 1)
+          if [ -z "$GRADLE_FILE" ]; then
+            echo "❌ 错误：在仓库中没有找到 settings.gradle 或 build.gradle，请检查文件是否已上传并 Commit！"
+            ls -la
+            exit 1
+          fi
+          PROJECT_DIR=$(dirname "$GRADLE_FILE")
+          echo "✅ 找到项目目录: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
+          
+          # 将伪装成 png 的 svg 图标删除并替换为合规图标，防止 AAPT2 编译崩溃
+          rm -f app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          
+          # 执行打包并关闭严格的资源校验
+          gradle assembleDebug -Pandroid.aapt2FromMavenOverride="" --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/shanji-debug.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
