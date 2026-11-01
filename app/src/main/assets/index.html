@@ -1,0 +1,3511 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark" data-view="phone">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <meta name="theme-color" content="#0a84ff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>闪记 ShanJi - 高考英语智能背词与教研词库 PWA</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230a84ff'/%3E%3Cpath d='M108 28L52 106h42l-10 58 56-78H98l10-58z' fill='%23ffd60a'/%3E%3C/svg%3E" />
+  <!-- 按需 CDN 引入：JSZip 3.10.1 与 pdf.js 3.11.174 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <style>
+    /* ================= 1. 视觉风格与三套配色主题 ================= */
+    :root,
+    [data-theme="dark"] {
+      --bg: #0b0b10;
+      --p: rgba(255, 255, 255, .06);
+      --b: rgba(255, 255, 255, .12);
+      --t: #f2f2f7;
+      --s: #8e8e93;
+      --a: #0a84ff;
+      --y: #ffd60a;
+      --pn: #1c1c22;
+      --cd: #d1d1d6;
+      --ok: #30d158;
+      --err: #ff453a;
+      --base-fs: 15px;
+    }
+
+    [data-theme="light"] {
+      --bg: #f2f2f7;
+      --p: rgba(0, 0, 0, .04);
+      --b: rgba(0, 0, 0, .12);
+      --t: #1c1c1e;
+      --s: #6e6e73;
+      --a: #007aff;
+      --y: #b26a00;
+      --pn: #fff;
+      --cd: #3a3a3c;
+      --ok: #248a3d;
+      --err: #d70015;
+    }
+
+    [data-theme="eye"] {
+      --bg: #f4ecd8;
+      --p: rgba(0, 0, 0, .04);
+      --b: rgba(90, 70, 30, .22);
+      --t: #3b3326;
+      --s: #7a6d55;
+      --a: #2f6f4f;
+      --y: #a05a00;
+      --pn: #fbf5e6;
+      --cd: #4a4130;
+      --ok: #286e34;
+      --err: #b82c1d;
+    }
+
+    /* 三端视图与字号基础规范 */
+    [data-view="phone"] {
+      --base-fs: 15px;
+    }
+    [data-view="tablet"] {
+      --base-fs: 18px;
+    }
+    [data-view="board"] {
+      --base-fs: 30px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      font-size: var(--custom-fs, var(--base-fs));
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--t);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding-bottom: 4.5rem;
+      transition: background-color 0.25s ease, color 0.25s ease;
+      overflow-x: hidden;
+    }
+
+    /* 毛玻璃极简卡片风通用类 */
+    .glass-card {
+      background: var(--p);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--b);
+      border-radius: 14px;
+    }
+
+    .glass-panel {
+      background: var(--pn);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--b);
+      border-radius: 14px;
+    }
+
+    /* 顶部粘性毛玻璃导航栏 */
+    .top-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--p);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--b);
+      padding: 0.65rem 0.9rem;
+    }
+
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.65rem;
+      height: 1.65rem;
+      border-radius: 8px;
+      background: var(--a);
+      color: #fff;
+      font-size: 0.95rem;
+      box-shadow: 0 2px 10px rgba(10, 132, 255, 0.35);
+    }
+
+    .brand-sub {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--s);
+      padding: 0.1rem 0.4rem;
+      border: 1px solid var(--b);
+      border-radius: 6px;
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    /* 按钮基础样式 */
+    button, .btn {
+      font-family: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--t);
+      background: var(--p);
+      border: 1px solid var(--b);
+      border-radius: 10px;
+      padding: 0.35rem 0.65rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.28rem;
+      transition: all 0.16s ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    button:hover, .btn:hover {
+      border-color: var(--a);
+    }
+
+    button:active, .btn:active {
+      transform: scale(0.97);
+    }
+
+    button.active, .btn-primary {
+      background: var(--a);
+      color: #fff;
+      border-color: var(--a);
+    }
+
+    .btn-warn {
+      color: var(--y);
+      border-color: var(--y);
+    }
+
+    .btn-danger {
+      color: var(--err);
+      border-color: rgba(255, 69, 58, 0.35);
+    }
+
+    .btn-success {
+      background: var(--ok);
+      color: #fff;
+      border-color: var(--ok);
+    }
+
+    [data-view="board"] button,
+    [data-view="board"] .btn {
+      padding: 0.42rem 0.75rem;
+      border-width: 2px;
+      font-weight: 700;
+    }
+
+    .seg-group {
+      display: inline-flex;
+      background: var(--p);
+      border: 1px solid var(--b);
+      border-radius: 10px;
+      padding: 0.12rem;
+      gap: 0.12rem;
+    }
+
+    .seg-group button {
+      border: none;
+      background: transparent;
+      padding: 0.24rem 0.5rem;
+      border-radius: 8px;
+      font-size: 0.76rem;
+    }
+
+    .seg-group button.active {
+      background: var(--a);
+      color: #fff;
+    }
+
+    /* 搜索栏与二级操作栏 */
+    .search-action-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 180px;
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--p);
+      color: var(--t);
+      border: 1px solid var(--b);
+      border-radius: 10px;
+      padding: 0.4rem 1.8rem 0.4rem 0.7rem;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--a);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 0.35rem;
+      border: none;
+      background: transparent;
+      color: var(--s);
+      padding: 0.15rem 0.35rem;
+      font-size: 0.8rem;
+      display: none;
+    }
+
+    /* 四大导航标签页 */
+    .nav-tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.4rem;
+    }
+
+    .nav-tab {
+      padding: 0.45rem 0.35rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-align: center;
+      position: relative;
+    }
+
+    .tab-badge {
+      display: inline-block;
+      padding: 0.05rem 0.38rem;
+      font-size: 0.68rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      margin-left: 0.2rem;
+    }
+
+    /* 主容器 */
+    .main-container {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0.75rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* 二级分组与工具条 */
+    .sub-toolbar {
+      padding: 0.65rem 0.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+    }
+
+    .group-selector-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    select, input[type="text"], input[type="password"], textarea {
+      font-family: inherit;
+      font-size: 0.85rem;
+      color: var(--t);
+      background: var(--pn);
+      border: 1px solid var(--b);
+      border-radius: 10px;
+      padding: 0.36rem 0.6rem;
+      outline: none;
+    }
+
+    select:focus, input:focus, textarea:focus {
+      border-color: var(--a);
+    }
+
+    .batch-actions-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.38rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid var(--b);
+    }
+
+    .stats-pill {
+      font-size: 0.78rem;
+      color: var(--s);
+      margin-right: auto;
+    }
+
+    /* ================= 2. 瀑布流与三端响应式单词卡片 ================= */
+    .word-list-container {
+      width: 100%;
+    }
+
+    [data-view="phone"] .word-list-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    [data-view="tablet"] .word-list-container {
+      columns: 13em;
+      column-gap: 0.75rem;
+    }
+
+    [data-view="board"] .word-list-container {
+      columns: 17em;
+      column-gap: 0.9rem;
+    }
+
+    .word-card {
+      break-inside: avoid;
+      -webkit-column-break-inside: avoid;
+      page-break-inside: avoid;
+      margin-bottom: 0.65rem;
+      padding: 0.7rem 0.8rem;
+      transition: transform 0.15s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+
+    [data-view="phone"] .word-card {
+      margin-bottom: 0;
+    }
+
+    .word-card:hover {
+      border-color: var(--a);
+    }
+
+    .word-card.checked-card {
+      border-color: var(--a);
+      box-shadow: inset 0 0 0 1px var(--a);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.4rem;
+      cursor: pointer;
+    }
+
+    .card-left {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .word-check {
+      width: 1.05rem;
+      height: 1.05rem;
+      accent-color: var(--a);
+      cursor: pointer;
+      flex-shrink: 0;
+      transform: translateY(2px);
+    }
+
+    .word-spelling {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--t);
+      word-break: break-word;
+      letter-spacing: -0.01em;
+    }
+
+    .word-spelling.masked {
+      color: transparent;
+      background: var(--b);
+      border-radius: 6px;
+      padding: 0 0.4rem;
+      user-select: none;
+      position: relative;
+    }
+
+    .word-spelling.masked::after {
+      content: "点击揭晓单词";
+      color: var(--s);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .group-tag {
+      font-size: 0.68rem;
+      color: var(--s);
+      border: 1px solid var(--b);
+      padding: 0.05rem 0.35rem;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    .pending-tag {
+      font-size: 0.68rem;
+      color: var(--y);
+      background: rgba(255, 214, 10, 0.14);
+      border: 1px solid var(--y);
+      padding: 0.05rem 0.38rem;
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .card-tools {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      padding: 0.22rem 0.38rem;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--s);
+    }
+
+    .icon-btn:hover {
+      background: var(--p);
+      border-color: var(--b);
+      color: var(--t);
+    }
+
+    .icon-btn.starred {
+      color: var(--y);
+    }
+
+    .word-meaning-row {
+      margin-top: 0.35rem;
+      font-size: 0.92rem;
+      color: var(--cd);
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.4rem;
+    }
+
+    .quiz-hint-badge {
+      font-size: 0.7rem;
+      color: var(--a);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* 熟词生义高亮标签（无论是否展开均可醒目提示） */
+    .polysemy-highlight {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.38rem;
+      padding: 0.18rem 0.48rem;
+      border-radius: 8px;
+      background: rgba(255, 214, 10, 0.14);
+      border: 1px solid var(--y);
+      color: var(--y);
+      font-size: 0.78rem;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    /* 6 大详细考点折叠区 */
+    .word-details {
+      margin-top: 0.55rem;
+      padding-top: 0.55rem;
+      border-top: 1px dashed var(--b);
+      display: none;
+      flex-direction: column;
+      gap: 0.38rem;
+      font-size: 0.83rem;
+      color: var(--cd);
+    }
+
+    .word-card.expanded .word-details {
+      display: flex;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.38rem;
+      line-height: 1.45;
+    }
+
+    .detail-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.08rem 0.36rem;
+      border-radius: 5px;
+      background: rgba(10, 132, 255, 0.15);
+      color: var(--a);
+      flex-shrink: 0;
+    }
+
+    .detail-label.poly-label {
+      background: rgba(255, 214, 10, 0.18);
+      color: var(--y);
+    }
+
+    /* ================= 3. 艾宾浩斯复习面板 ================= */
+    .ebbinghaus-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 0.7rem;
+    }
+
+    .rev-card {
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .rev-card.due-today {
+      border-color: var(--y);
+      box-shadow: 0 0 16px rgba(255, 214, 10, 0.15);
+    }
+
+    .due-badge {
+      background: var(--y);
+      color: #000;
+      font-weight: 800;
+      font-size: 0.72rem;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+    }
+
+    .stage-dots {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      margin: 0.2rem 0;
+    }
+
+    .stage-dot {
+      flex: 1;
+      text-align: center;
+      font-size: 0.68rem;
+      padding: 0.15rem 0;
+      border-radius: 6px;
+      border: 1px solid var(--b);
+      color: var(--s);
+    }
+
+    .stage-dot.done {
+      background: rgba(48, 209, 88, 0.18);
+      border-color: var(--ok);
+      color: var(--ok);
+      font-weight: 700;
+    }
+
+    .stage-dot.current {
+      background: var(--a);
+      border-color: var(--a);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    /* ================= 4. 模态弹窗系统 ================= */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.62);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0.8rem;
+      overflow-y: auto;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-dialog {
+      width: 100%;
+      max-width: 680px;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--b);
+      padding-bottom: 0.55rem;
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .form-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .form-field label {
+      font-size: 0.76rem;
+      color: var(--s);
+      font-weight: 600;
+    }
+
+    /* 进度条组件 */
+    .progress-box {
+      display: none;
+      flex-direction: column;
+      gap: 0.35rem;
+      padding: 0.65rem;
+      border-radius: 10px;
+      background: var(--p);
+      border: 1px solid var(--b);
+    }
+
+    .progress-box.show {
+      display: flex;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--b);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: var(--a);
+      transition: width 0.2s ease;
+    }
+
+    /* 听写测试大卡片 */
+    .dictation-stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.85rem;
+      padding: 1.1rem 0.6rem;
+    }
+
+    .dictation-prompt {
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--t);
+      min-height: 2.2rem;
+    }
+
+    .dictation-cloze {
+      font-size: 0.92rem;
+      color: var(--y);
+      background: rgba(255, 214, 10, 0.1);
+      border: 1px dashed var(--y);
+      padding: 0.5rem 0.8rem;
+      border-radius: 10px;
+      max-width: 95%;
+    }
+
+    .dictation-answer-box {
+      width: 100%;
+      padding: 0.85rem;
+      border-radius: 12px;
+      background: var(--p);
+      border: 1px solid var(--b);
+      display: none;
+      flex-direction: column;
+      gap: 0.35rem;
+      text-align: left;
+    }
+
+    .dictation-answer-box.revealed {
+      display: flex;
+    }
+
+    /* 轻提示 Toast */
+    .toast-container {
+      position: fixed;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      max-width: 360px;
+      pointer-events: none;
+    }
+
+    .toast-item {
+      pointer-events: auto;
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      background: var(--pn);
+      border: 1px solid var(--a);
+      color: var(--t);
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+      animation: slideInUp 0.2s ease;
+    }
+
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--s);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    @media (max-width: 640px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .nav-tabs {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ================= 顶部导航与全局控制栏 ================= -->
+  <header class="top-header">
+    <div class="header-inner">
+      <div class="brand-row">
+        <div class="brand-title">
+          <span class="brand-badge">⚡</span>
+          <span>闪记 ShanJi</span>
+          <span class="brand-sub">高考教研词库 PWA</span>
+        </div>
+
+        <div class="top-controls">
+          <!-- 三套配色主题切换 -->
+          <div class="seg-group" role="group" aria-label="配色主题">
+            <button type="button" id="themeDarkBtn" class="active" onclick="setTheme('dark')">🌙 深色</button>
+            <button type="button" id="themeLightBtn" onclick="setTheme('light')">☀️ 浅色</button>
+            <button type="button" id="themeEyeBtn" onclick="setTheme('eye')">📜 护眼</button>
+          </div>
+
+          <!-- 三端视图切换 -->
+          <div class="seg-group" role="group" aria-label="三端视图模式">
+            <button type="button" id="viewPhoneBtn" class="active" onclick="setViewMode('phone')" title="手机单列 (15px)">📱 手机</button>
+            <button type="button" id="viewTabletBtn" onclick="setViewMode('tablet')" title="平板瀑布流 (18px)">📟 平板</button>
+            <button type="button" id="viewBoardBtn" onclick="setViewMode('board')" title="教室大屏白板 (30px)">🖥️ 白板</button>
+          </div>
+
+          <!-- A- / A+ 无级字号调节 -->
+          <div class="seg-group" role="group" aria-label="字号调节">
+            <button type="button" id="fontDecBtn" onclick="adjustFontSize(-1)" title="减小字号">A-</button>
+            <button type="button" id="fontResetBtn" onclick="resetFontSize()" title="重置当前视图默认字号">15px</button>
+            <button type="button" id="fontIncBtn" onclick="adjustFontSize(1)" title="增大字号">A+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全局实时搜索与系统级操作按钮 -->
+      <div class="search-action-row">
+        <div class="search-box">
+          <input type="text" id="globalSearchInput" placeholder="🔍 实时搜索英文单词、高考释义、熟词生义或短语搭配..." oninput="handleGlobalSearch(this.value)" />
+          <button type="button" id="searchClearBtn" class="search-clear" onclick="clearGlobalSearch()">✕</button>
+        </div>
+
+        <button type="button" id="quizModeBtn" onclick="toggleQuizMode()" title="开启后列表隐藏英文，点击第1下揭晓单词，点击第2下展开6大考点">🙈 抽测模式: 关</button>
+        <button type="button" class="btn-primary" onclick="openDictationModal()">🎯 多维听写</button>
+        <button type="button" onclick="openImportModal()">📥 导入/AI补全</button>
+        <button type="button" onclick="openAiConfigModal()">⚙ AI 检索配置</button>
+        <button type="button" onclick="openBackupModal()">💾 备份/PWA</button>
+      </div>
+
+      <!-- 四大导航标签页 -->
+      <nav class="nav-tabs" aria-label="主导航">
+        <button type="button" id="tabBtn_tb" class="nav-tab active" onclick="switchMainTab('tb')">
+          📘 课本词库 <span class="tab-badge" id="badge_tb">2</span>
+        </button>
+        <button type="button" id="tabBtn_std" class="nav-tab" onclick="switchMainTab('std')">
+          📗 课标3100 <span class="tab-badge" id="badge_std">1</span>
+        </button>
+        <button type="button" id="tabBtn_star" class="nav-tab" onclick="switchMainTab('star')">
+          ★ 错题本 <span class="tab-badge" id="badge_star">0</span>
+        </button>
+        <button type="button" id="tabBtn_rev" class="nav-tab" onclick="switchMainTab('rev')">
+          ⏳ 艾宾浩斯复习 <span class="tab-badge" id="badge_rev">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ================= 主内容区域 ================= -->
+  <main class="main-container">
+    <!-- 课本 / 课标 / 错题 二级控制栏 -->
+    <section id="listToolbarSection" class="glass-card sub-toolbar">
+      <div class="group-selector-row">
+        <!-- 课本二级联动下拉（7册 × 7单元） -->
+        <div id="tbSelectorWrap" class="select-wrap">
+          <label for="bookSelect" style="font-size:0.8rem;font-weight:700;">外研版册次:</label>
+          <select id="bookSelect" onchange="handleBookUnitChange()">
+            <option value="1">必修一 (Book 1)</option>
+            <option value="2">必修二 (Book 2)</option>
+            <option value="3">必修三 (Book 3)</option>
+            <option value="4">选择性必修一 (Book 4)</option>
+            <option value="5">选择性必修二 (Book 5)</option>
+            <option value="6">选择性必修三 (Book 6)</option>
+            <option value="7">选择性必修四 (Book 7)</option>
+          </select>
+
+          <label for="unitSelect" style="font-size:0.8rem;font-weight:700;">单元:</label>
+          <select id="unitSelect" onchange="handleBookUnitChange()">
+            <option value="1">Unit 1</option>
+            <option value="2">Unit 2</option>
+            <option value="3">Unit 3</option>
+            <option value="4">Unit 4</option>
+            <option value="5">Unit 5</option>
+            <option value="6">Unit 6</option>
+            <option value="7">Unit 7</option>
+          </select>
+        </div>
+
+        <!-- 课标3100 自动分组下拉（每组约 55 词） -->
+        <div id="stdSelectorWrap" class="select-wrap" style="display:none;">
+          <label for="stdGroupSelect" style="font-size:0.8rem;font-weight:700;">课标分组 (每组55词):</label>
+          <select id="stdGroupSelect" onchange="handleStdGroupChange()"></select>
+        </div>
+
+        <!-- 错题本标题说明 -->
+        <div id="starHeaderWrap" class="select-wrap" style="display:none;">
+          <span style="font-size:0.88rem;font-weight:700;color:var(--y);">★ 错题与重点词汇汇总（含手动星标与听写答错词汇）</span>
+        </div>
+
+        <!-- 右侧：学完加入艾宾浩斯复习曲线 & 一键补全缺失释义 -->
+        <div class="select-wrap">
+          <button type="button" id="completeCurrentMissingBtn" class="btn-warn" style="display:none;" onclick="completeMissingInCurrentGroup()">
+            ✨ 一键补全本组缺释义词 (<span id="missingCountSpan">0</span>)
+          </button>
+          <button type="button" id="joinReviewCurveBtn" class="btn-success" onclick="markCurrentGroupLearned()">
+            ✓ 学完本组，加入复习曲线
+          </button>
+          <button type="button" onclick="openEditWordModal(null)">➕ 新增词条</button>
+        </div>
+      </div>
+
+      <!-- 列表操作栏：乱序、展开/收起、全选/取消、删除本组 -->
+      <div class="batch-actions-row">
+        <span class="stats-pill" id="currentListStats">当前分组共 0 词 · 已勾选 0 词</span>
+        <button type="button" onclick="shuffleCurrentGroup()">🔀 本组乱序</button>
+        <button type="button" id="expandAllBtn" onclick="toggleExpandAll()">📂 全部展开</button>
+        <button type="button" id="checkAllBtn" onclick="toggleCheckAll()">☑️ 全部勾选</button>
+        <button type="button" class="btn-danger" onclick="confirmDeleteCurrentGroup()">🗑️ 删除本组全部单词</button>
+      </div>
+    </section>
+
+    <!-- 主界面 AI 补全实时进度条（用于「一键补全本组缺释义词」） -->
+    <section id="inlineAiProgressBox" class="progress-box">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+        <span id="inlineAiStatusText" style="font-size:0.82rem;font-weight:700;">正在分批检索补全...</span>
+        <div style="display:flex;gap:0.35rem;">
+          <button type="button" id="inlineAiPauseBtn" class="btn-warn" onclick="togglePauseAiQueue()">⏸ 暂停</button>
+          <button type="button" class="btn-danger" onclick="stopAiQueue()">⏹ 停止</button>
+        </div>
+      </div>
+      <div class="progress-track">
+        <div id="inlineAiProgressBar" class="progress-bar"></div>
+      </div>
+    </section>
+
+    <!-- 单词卡片瀑布流列表 -->
+    <section id="wordListSection" class="word-list-container"></section>
+
+    <!-- 艾宾浩斯复习曲线专属视图 -->
+    <section id="reviewCurveSection" style="display:none;flex-direction:column;gap:0.8rem;">
+      <div class="glass-card" style="padding:0.85rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+        <div>
+          <h2 style="font-size:1.02rem;font-weight:800;">⏳ 艾宾浩斯记忆追踪曲线 [1, 2, 4, 7, 15, 30] 天</h2>
+          <p style="font-size:0.78rem;color:var(--s);margin-top:0.15rem;">
+            规则：到期分组高亮提示「今天到期」；复习测试正确率 ≥90% 升一档，&lt;70% 降一档，70%~89% 保持当前档位巩固。
+          </p>
+        </div>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+          <button type="button" onclick="simulateReviewDayAdvance()" title="调试演练：将所有复习计划到期日向前推进1天">⏩ 模拟推进1天</button>
+        </div>
+      </div>
+      <div id="ebbinghausGrid" class="ebbinghaus-grid"></div>
+    </section>
+  </main>
+
+  <!-- ================= 模态框 1：导入文档与分批 AI 补全 ================= -->
+  <div id="importModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="importModalTitle">
+    <div class="glass-panel modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="importModalTitle">📥 多格式文档深度解析与 AI 智能补全</span>
+        <button type="button" onclick="closeModal('importModal')">✕ 关闭</button>
+      </div>
+
+      <!-- 目标归属分组 -->
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="importTargetType">导入目标词库类型</label>
+          <select id="importTargetType" onchange="toggleImportTargetSelectors()">
+            <option value="tb">📘 外研版课本词库 (必修/选修)</option>
+            <option value="std">📗 课标 3100 词库 (按55词自动分组)</option>
+          </select>
+        </div>
+        <div class="form-field" id="importTbGroupWrap">
+          <label>目标册次与单元</label>
+          <div style="display:flex;gap:0.35rem;">
+            <select id="importBookSelect" style="flex:1;">
+              <option value="1">必修一</option>
+              <option value="2">必修二</option>
+              <option value="3">必修三</option>
+              <option value="4">选修一</option>
+              <option value="5">选修二</option>
+              <option value="6">选修三</option>
+              <option value="7">选修四</option>
+            </select>
+            <select id="importUnitSelect" style="flex:1;">
+              <option value="1">Unit 1</option>
+              <option value="2">Unit 2</option>
+              <option value="3">Unit 3</option>
+              <option value="4">Unit 4</option>
+              <option value="5">Unit 5</option>
+              <option value="6">Unit 6</option>
+              <option value="7">Unit 7</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文件上传选择 -->
+      <div class="glass-card" style="padding:0.75rem;display:flex;flex-direction:column;gap:0.45rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">
+          <span style="font-size:0.82rem;font-weight:700;">📄 选择本地文档 (.txt / .csv / .tsv / .docx / .pptx / .pdf)</span>
+          <label class="btn btn-primary" for="fileUploadInput" style="cursor:pointer;">
+            📂 选择文件解析
+          </label>
+          <input type="file" id="fileUploadInput" accept=".txt,.csv,.tsv,.docx,.pptx,.pdf" style="display:none;" onchange="handleFileSelect(this)" />
+        </div>
+        <p style="font-size:0.74rem;color:var(--s);">
+          • Word/PPT 采用 JSZip 聚合段落节点（&lt;w:p&gt;/&lt;a:p&gt; 内全部 &lt;w:t&gt;/&lt;a:t&gt;），彻底杜绝局部加粗/变色切碎单词导致漏词。<br/>
+          • PDF 采用流式分页异步读取（每 5 页让出主线程防卡死），无文字层扫描件将自动拦截提醒。
+        </p>
+
+        <!-- PDF / Office 解析进度条 -->
+        <div id="fileParseProgressBox" class="progress-box">
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;font-weight:700;">
+            <span id="fileParseStatusText">正在读取第 1 / 1 页...</span>
+            <span id="fileParsePercentText">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="fileParseProgressBar" class="progress-bar"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 文本预览与编辑框 -->
+      <div class="form-field full">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.35rem;">
+          <label for="importTextarea">词条数据编辑区（支持纯单词每行一个，或 `单词|高考释义|熟词生义|例句|搭配|辨析|变形` 7栏格式）</label>
+          <button type="button" onclick="fillDemoPureWords()" style="font-size:0.72rem;padding:0.18rem 0.45rem;">填入测试生词</button>
+        </div>
+        <textarea id="importTextarea" rows="8" placeholder="示例1（纯单词，可点击下方「✨ 分批自动检索释义」）：&#10;resilient&#10;ambiguous&#10; Inevitable&#10;&#10;示例2（完整或部分7栏竖线/Tab分隔）：&#10;abandon|v. 放弃，遗弃；n. 放任|[熟词生义] n. 放任，狂热|They had to abandon the car.|abandon oneself to 沉湎于|desert 抛弃(违背义务)|abandoned adj. 被遗弃的"></textarea>
+      </div>
+
+      <!-- 导入弹窗内的 AI 补全进度条 -->
+      <div id="modalAiProgressBox" class="progress-box">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;flex-wrap:wrap;">
+          <span id="modalAiStatusText" style="font-size:0.8rem;font-weight:700;">正在分批检索释义...</span>
+          <div style="display:flex;gap:0.35rem;">
+            <button type="button" id="modalAiPauseBtn" class="btn-warn" onclick="togglePauseAiQueue()">⏸ 暂停</button>
+            <button type="button" class="btn-danger" onclick="stopAiQueue()">⏹ 停止</button>
+          </div>
+        </div>
+        <div class="progress-track">
+          <div id="modalAiProgressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+        <button type="button" class="btn-warn" onclick="startBatchAiFromTextarea()">
+          ✨ 分批自动检索释义 (每批10词/断点保护)
+        </button>
+        <div style="display:flex;gap:0.45rem;">
+          <button type="button" onclick="closeModal('importModal')">取消</button>
+          <button type="button" class="btn-primary" onclick="confirmImportFromTextarea()">✅ 确认去重导入词库</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 模态框 2：AI 检索配置 ================= -->
+  <div id="aiConfigModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="aiConfigModalTitle">
+    <div class="glass-panel modal-dialog" style="max-width:520px;">
+      <div class="modal-header">
+        <span class="modal-title" id="aiConfigModalTitle">⚙ AI 检索配置 (兼容 OpenAI 格式)</span>
+        <button type="button" onclick="closeModal('aiConfigModal')">✕ 关闭</button>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-field full">
+          <label for="aiApiUrlInput">API 接口地址 (默认 DeepSeek 官方接口)</label>
+          <input type="text" id="aiApiUrlInput" placeholder="https://api.deepseek.com/v1/chat/completions" />
+        </div>
+        <div class="form-field full">
+          <label for="aiApiKeyInput">API Key (留空则自动降级调用免费 api.dictionaryapi.dev，间隔350ms防429)</label>
+          <input type="password" id="aiApiKeyInput" placeholder="sk-..." />
+        </div>
+        <div class="form-field full">
+          <label for="aiModelInput">模型名称 (默认 deepseek-chat)</label>
+          <input type="text" id="aiModelInput" placeholder="deepseek-chat" />
+        </div>
+      </div>
+
+      <p style="font-size:0.76rem;color:var(--s);line-height:1.45;">
+        💡 说明：配置保存在本地 <code>localStorage</code> 中。开启 AI 检索后，系统按每批 10 个单词请求大模型生成严格 JSON 数组，自动补全「高考释义、熟词生义、经典例句、用法搭配、易混辨析、语法填空变形」7 栏教研字段。若未配置 Key，将使用免费词典接口按 350ms 间隔安全拉取基础释义与例句。
+      </p>
+
+      <div style="display:flex;justify-content:flex-end;gap:0.45rem;">
+        <button type="button" onclick="resetAiConfigDefault()">恢复默认</button>
+        <button type="button" class="btn-primary" onclick="saveAiConfig()">💾 保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 模态框 3：单条单词编辑 / 新增 ================= -->
+  <div id="editWordModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="editWordModalTitle">
+    <div class="glass-panel modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="editWordModalTitle">✏️ 编辑高考 7 栏词条</span>
+        <button type="button" onclick="closeModal('editWordModal')">✕ 关闭</button>
+      </div>
+
+      <input type="hidden" id="editWordId" />
+      <div class="form-grid">
+        <div class="form-field">
+          <label for="editWordType">所属分类 (t)</label>
+          <select id="editWordType" onchange="toggleEditModalBookUnit()">
+            <option value="tb">tb - 外研版课本词库</option>
+            <option value="std">std - 课标3100词库</option>
+          </select>
+        </div>
+        <div class="form-field" id="editBookUnitWrap">
+          <label>课本册数 (b) 与 单元 (u)</label>
+          <div style="display:flex;gap:0.35rem;">
+            <select id="editWordBook" style="flex:1;">
+              <option value="1">必修一 (1)</option>
+              <option value="2">必修二 (2)</option>
+              <option value="3">必修三 (3)</option>
+              <option value="4">选修一 (4)</option>
+              <option value="5">选修二 (5)</option>
+              <option value="6">选修三 (6)</option>
+              <option value="7">选修四 (7)</option>
+            </select>
+            <select id="editWordUnit" style="flex:1;">
+              <option value="1">Unit 1</option>
+              <option value="2">Unit 2</option>
+              <option value="3">Unit 3</option>
+              <option value="4">Unit 4</option>
+              <option value="5">Unit 5</option>
+              <option value="6">Unit 6</option>
+              <option value="7">Unit 7</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="editWordSpelling">1. 单词拼写 (w) *</label>
+          <input type="text" id="editWordSpelling" placeholder="如: abandon" />
+        </div>
+        <div class="form-field">
+          <label for="editWordMeaning">2. 高考核心释义 (m)</label>
+          <input type="text" id="editWordMeaning" placeholder="如: v. 放弃，遗弃；n. 放任" />
+        </div>
+        <div class="form-field full">
+          <label for="editWordPolysemy">3. 熟词生义 (x) — 将以高亮标签展示</label>
+          <input type="text" id="editWordPolysemy" placeholder="如: [熟词生义] n. 放任，狂热 (with reckless abandon)" />
+        </div>
+        <div class="form-field full">
+          <label for="editWordExample">4. 经典高考例句 (e)</label>
+          <input type="text" id="editWordExample" placeholder="如: Snow forced many drivers to abandon their vehicles." />
+        </div>
+        <div class="form-field full">
+          <label for="editWordCollocation">5. 常见用法搭配 (c)</label>
+          <input type="text" id="editWordCollocation" placeholder="如: abandon oneself to 沉湎于...; with abandon 放纵地" />
+        </div>
+        <div class="form-field full">
+          <label for="editWordDiff">6. 易混词辨析 (d)</label>
+          <input type="text" id="editWordDiff" placeholder="如: abandon 被迫放弃 / desert 违背责任抛弃 / quit 停止" />
+        </div>
+        <div class="form-field full">
+          <label for="editWordGrammar">7. 语法填空变形 (g)</label>
+          <input type="text" id="editWordGrammar" placeholder="如: abandoned (adj. 被遗弃的); abandonment (n.)" />
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:0.45rem;">
+        <button type="button" onclick="closeModal('editWordModal')">取消</button>
+        <button type="button" class="btn-primary" onclick="saveWordEdit()">💾 保存词条</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 模态框 4：多维听写与艾宾浩斯复习测试 ================= -->
+  <div id="dictationModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="dictationModalTitle">
+    <div class="glass-panel modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title" id="dictationModalTitle">🎯 多维听写与记忆测评</span>
+        <button type="button" onclick="closeDictationModal()">✕ 退出测试</button>
+      </div>
+
+      <!-- 阶段 A：测试配置 -->
+      <div id="dictationSetupView" style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="dictScopeSelect">词源范围选择</label>
+            <select id="dictScopeSelect" onchange="handleDictScopeChange()">
+              <option value="current">当前正在浏览的分组</option>
+              <option value="checked">仅测列表手动勾选的词</option>
+              <option value="star">仅测 ★ 错题本中的词</option>
+              <option value="multi">自定义多选分组...</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="dictModeSelect">测试模式 (3种维度)</label>
+            <select id="dictModeSelect">
+              <option value="audio2en">🔊 听音写词 (播放发音 → 默写英文与释义)</option>
+              <option value="zh2en">🇨🇳 看中文写词 (显示释义 → 默写英文单词)</option>
+              <option value="en2zh">🇬🇧 看英语默汉语 (显示英文 → 回忆高考释义)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 多选分组勾选区 -->
+        <div id="dictMultiGroupsWrap" class="glass-card" style="display:none;padding:0.65rem;max-height:170px;overflow-y:auto;gap:0.35rem;flex-wrap:wrap;"></div>
+
+        <!-- 例句挖空语境提示开关 -->
+        <label style="display:flex;align-items:center;gap:0.45rem;font-size:0.85rem;font-weight:700;cursor:pointer;">
+          <input type="checkbox" id="dictClozeToggle" checked style="width:1.05rem;height:1.05rem;accent-color:var(--a);" />
+          <span>💡 开启「例句挖空提示」（在测试界面显示将目标词替换为 `____` 的经典例句作为语境线索）</span>
+        </label>
+
+        <div style="display:flex;justify-content:flex-end;gap:0.45rem;">
+          <button type="button" class="btn-primary" onclick="startDictationSession(null)">🚀 开始测评</button>
+        </div>
+      </div>
+
+      <!-- 阶段 B：正在听写测评 -->
+      <div id="dictationActiveView" style="display:none;flex-direction:column;gap:0.65rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;color:var(--s);">
+          <span id="dictProgressCounter">第 1 / 10 题</span>
+          <span id="dictScoreCounter">✓ 认识: 0 · ✗ 答错: 0</span>
+        </div>
+
+        <div class="glass-card dictation-stage">
+          <div id="dictPromptText" class="dictation-prompt">点击下方按钮播放发音</div>
+          <div style="display:flex;gap:0.45rem;justify-content:center;flex-wrap:wrap;">
+            <button type="button" onclick="replayDictationAudio()">🔊 播放发音</button>
+            <button type="button" id="dictInlineClozeBtn" onclick="toggleDictationInlineCloze()">💡 语境挖空提示: 开</button>
+          </div>
+
+          <div id="dictClozeBox" class="dictation-cloze" style="display:none;"></div>
+
+          <input type="text" id="dictUserSpellInput" placeholder="可在此输入拼写自检，按 Enter 键揭晓答案..." style="width:100%;max-width:360px;text-align:center;font-size:1rem;" onkeydown="handleDictInputKeydown(event)" />
+
+          <!-- 揭晓答案区 -->
+          <div id="dictAnswerBox" class="dictation-answer-box">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:0.4rem;">
+              <span id="dictAnsWord" style="font-size:1.25rem;font-weight:800;color:var(--a);"></span>
+              <span id="dictAnsSpellCheck" style="font-size:0.78rem;font-weight:700;"></span>
+            </div>
+            <div id="dictAnsMeaning" style="font-size:0.92rem;color:var(--t);"></div>
+            <div id="dictAnsPoly" class="polysemy-highlight" style="display:none;"></div>
+            <div id="dictAnsExtra" style="font-size:0.78rem;color:var(--s);"></div>
+          </div>
+        </div>
+
+        <!-- 底部快捷键操作按钮 -->
+        <div style="display:flex;justify-content:center;gap:0.6rem;flex-wrap:wrap;">
+          <button type="button" id="dictRevealBtn" class="btn-primary" style="min-width:180px;padding:0.55rem 1rem;" onclick="revealDictationAnswer()">
+            👀 揭晓答案 (Enter)
+          </button>
+          <button type="button" id="dictCorrectBtn" class="btn-success" style="display:none;min-width:140px;padding:0.55rem 0.9rem;" onclick="markDictationResult(true)">
+            ✓ 回答正确 (← 或 1)
+          </button>
+          <button type="button" id="dictWrongBtn" class="btn-danger" style="display:none;min-width:140px;padding:0.55rem 0.9rem;" onclick="markDictationResult(false)">
+            ✗ 答错加星 (→ 或 2)
+          </button>
+        </div>
+        <p style="text-align:center;font-size:0.73rem;color:var(--s);">
+          ⌨️ 键盘快捷键：<b>Enter</b> 揭晓答案 · <b>← / 数字 1</b> 标记正确 · <b>→ / 数字 2</b> 标记错误（错词自动加入 ★ 错题本）
+        </p>
+      </div>
+
+      <!-- 阶段 C：测评结算报告 -->
+      <div id="dictationSummaryView" style="display:none;flex-direction:column;gap:0.75rem;text-align:center;padding:0.8rem 0;">
+        <h3 id="dictSummaryHeadline" style="font-size:1.3rem;font-weight:800;">🎉 测评完成！</h3>
+        <p id="dictSummarySub" style="font-size:0.9rem;color:var(--cd);"></p>
+        <div id="dictReviewCurveFeedback" class="glass-card" style="display:none;padding:0.75rem;font-size:0.86rem;font-weight:700;"></div>
+        <div style="display:flex;justify-content:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.4rem;">
+          <button type="button" onclick="closeDictationModal()">返回词库列表</button>
+          <button type="button" class="btn-primary" onclick="restartDictationSetup()">🔄 再测一轮</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 模态框 5：备份恢复与配套 PWA 文件下载 ================= -->
+  <div id="backupModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="backupModalTitle">
+    <div class="glass-panel modal-dialog" style="max-width:560px;">
+      <div class="modal-header">
+        <span class="modal-title" id="backupModalTitle">💾 词库备份恢复与配套 PWA 文件导出</span>
+        <button type="button" onclick="closeModal('backupModal')">✕ 关闭</button>
+      </div>
+
+      <div class="glass-card" style="padding:0.8rem;display:flex;flex-direction:column;gap:0.5rem;">
+        <h3 style="font-size:0.9rem;font-weight:800;">📦 本地 JSON 备份与恢复 (键名: <code>shanji_v1</code>)</h3>
+        <p style="font-size:0.76rem;color:var(--s);">
+          支持一键导出包含全部词条、★ 错题星标及艾宾浩斯复习曲线进度的完整 <code>.json</code> 备份文件，或从备份文件恢复。
+        </p>
+        <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+          <button type="button" class="btn-primary" onclick="exportJsonBackup()">⬇️ 导出 .json 备份</button>
+          <label class="btn" for="restoreJsonInput" style="cursor:pointer;">⬆️ 导入 .json 恢复</label>
+          <input type="file" id="restoreJsonInput" accept=".json" style="display:none;" onchange="importJsonBackup(this)" />
+          <button type="button" class="btn-danger" onclick="openConfirmResetSeedModal()">♻️ 重置为初始 3 词 SEED</button>
+        </div>
+      </div>
+
+      <div class="glass-card" style="padding:0.8rem;display:flex;flex-direction:column;gap:0.5rem;">
+        <h3 style="font-size:0.9rem;font-weight:800;">📲 配套 PWA 离线架构文件 (<code>manifest.json</code> &amp; <code>sw.js</code>)</h3>
+        <p style="font-size:0.76rem;color:var(--s);">
+          将 <code>index.html</code>、<code>manifest.json</code> 和 <code>sw.js</code> 放在同一静态目录即可开启完整离线缓存与桌面安装支持：
+        </p>
+        <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+          <button type="button" onclick="downloadCompanionFile('manifest.json')">⬇️ 下载 manifest.json</button>
+          <button type="button" onclick="downloadCompanionFile('sw.js')">⬇️ 下载 sw.js</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 模态框 6：通用安全确认弹窗（替代原生 confirm/alert） ================= -->
+  <div id="confirmDialogModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle">
+    <div class="glass-panel modal-dialog" style="max-width:440px;">
+      <div class="modal-header">
+        <span class="modal-title" id="confirmDialogTitle">⚠️ 操作确认</span>
+        <button type="button" onclick="closeModal('confirmDialogModal')">✕</button>
+      </div>
+      <p id="confirmDialogMessage" style="font-size:0.88rem;color:var(--cd);line-height:1.55;"></p>
+      <div style="display:flex;justify-content:flex-end;gap:0.45rem;">
+        <button type="button" id="confirmCancelBtn" onclick="closeModal('confirmDialogModal')">取消</button>
+        <button type="button" id="confirmOkBtn" class="btn-danger" onclick="executeConfirmedAction()">确认执行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 全局轻提示容器 -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <script>
+    /* =========================================================================
+     * 闪记 (ShanJi) 核心前端逻辑
+     * 严格遵循：
+     * 1. 纯净初始词库 SEED 仅保留 3 个演示词（abandon, object, appreciate），持久化键名 shanji_v1
+     * 2. pdf.js 3.11.174 显式配置 GlobalWorkerOptions.workerSrc
+     * 3. JSZip 3.10.1 聚合 <a:p>/<w:p> 内全部 <a:t>/<w:t> 防止切碎漏词
+     * 4. 分批队列式 AI 自动补全（每批 10 词、断点续传、重试 1 次、绝不覆盖为空白 ||||||）
+     * ========================================================================= */
+
+    const STORAGE_KEY = 'shanji_v1';
+    const AI_CONFIG_KEY = 'shanji_ai_cfg_v1';
+    const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
+
+    // 显式配置 pdf.js 3.11.174 Worker 地址
+    if (window.pdfjsLib && window.pdfjsLib.GlobalWorkerOptions) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    // 纯净初始 SEED（仅保留必修一 Unit 1 的 abandon、object 以及课标词 appreciate）
+    const INITIAL_SEED_WORDS = [
+      {
+        id: 'seed_abandon',
+        t: 'tb',
+        b: 1,
+        u: 1,
+        w: 'abandon',
+        m: 'v. 放弃，遗弃，抛弃；n. 放任，狂热',
+        x: 'n. 放任，狂热（with reckless abandon 肆无忌惮地）',
+        e: 'Snow forced many drivers to abandon their vehicles.',
+        c: 'abandon oneself to (doing) sth. 沉湎于/纵情于；with abandon 恣意地',
+        d: 'abandon 迫于外界压力放弃；desert 违背职责抛弃；quit 主动停止或辞职',
+        g: 'abandoned (adj. 被遗弃的；放纵的)；abandonment (n. 放弃)',
+        star: false,
+        pending: false
+      },
+      {
+        id: 'seed_object',
+        t: 'tb',
+        b: 1,
+        u: 1,
+        w: 'object',
+        m: 'n. 物体，目标，宾语；v. 反对，不赞成',
+        x: 'v. 反对（object to doing sth.）；n. 情感或研究的对象、宗旨',
+        e: 'Many local residents strongly object to the building of the new airport.',
+        c: 'object to (doing) sth. 反对做某事；have no objection to 不反对',
+        d: 'object 个人倾向或理由反对；oppose 采取行动反对(及物)；protest 公开抗议',
+        g: 'objection (n. 反对，异议)；objective (adj. 客观的 / n. 目标)',
+        star: false,
+        pending: false
+      },
+      {
+        id: 'seed_appreciate',
+        t: 'std',
+        b: 1,
+        u: 1,
+        w: 'appreciate',
+        m: 'v. 欣赏，感激，理解，意识到',
+        x: 'v. 升值，增值（反义词 depreciate 贬值）；充分意识到',
+        e: 'I would really appreciate it if you could reply at your earliest convenience.',
+        c: 'appreciate doing sth. 感激做某事；I would appreciate it if... 如果...我将不胜感激',
+        d: 'appreciate 后接事或 it 作宾语（不直接接人作宾语）；thank 后直接接人 (thank sb.)',
+        g: 'appreciation (n. 欣赏；感激；升值)；appreciative (adj. 感激的；赏识的)',
+        star: false,
+        pending: false
+      }
+    ];
+
+    // 常见停用词集合（用于清洗从 Word/PPT/PDF 提取的纯英文文本）
+    const STOP_WORDS = new Set([
+      'the', 'and', 'for', 'that', 'this', 'with', 'from', 'your', 'have', 'are',
+      'was', 'were', 'been', 'has', 'had', 'will', 'would', 'could', 'should',
+      'can', 'may', 'might', 'must', 'shall', 'not', 'but', 'you', 'they', 'their',
+      'them', 'his', 'her', 'its', 'our', 'who', 'whom', 'whose', 'which', 'what',
+      'where', 'when', 'why', 'how', 'all', 'any', 'both', 'each', 'few', 'more',
+      'most', 'other', 'some', 'such', 'than', 'too', 'very', 'just', 'into',
+      'over', 'after', 'before', 'between', 'under', 'again', 'further', 'then',
+      'once', 'here', 'there', 'about', 'above', 'below', 'down', 'out', 'off',
+      'only', 'own', 'same', 'so', 'nor', 'yet', 'also', 'did', 'does', 'doing',
+      'done', 'get', 'got', 'getting', 'let', 'put', 'say', 'said', 'see', 'seen',
+      'saw', 'use', 'used', 'using', 'one', 'two', 'three', 'four', 'five', 'six',
+      'seven', 'eight', 'nine', 'ten', 'unit', 'book', 'module', 'page', 'http',
+      'https', 'www', 'com', 'org', 'net', 'ppt', 'pptx', 'doc', 'docx', 'pdf'
+    ]);
+
+    // 全局响应式状态
+    let state = {
+      theme: 'dark',
+      viewMode: 'phone',
+      customFontSize: null,
+      activeTab: 'tb', // 'tb' | 'std' | 'star' | 'rev'
+      currentBook: 1,
+      currentUnit: 1,
+      currentStdGroup: 1,
+      searchQuery: '',
+      quizMode: false,
+      words: [],
+      reviews: {} // groupKey -> { key, label, stage, lastReviewedAt, nextReviewAt }
+    };
+
+    // UI 临时状态（展开、勾选、抽测揭晓步骤、确认回调）
+    let expandedIds = new Set();
+    let checkedIds = new Set();
+    let quizStepMap = new Map(); // id -> 0(未揭晓) | 1(已揭晓单词) | 2(已展开6大考点)
+    let pendingConfirmCallback = null;
+
+    // 分批 AI 补全队列控制状态
+    let aiQueueController = {
+      running: false,
+      paused: false,
+      stopped: false
+    };
+
+    // 听写测试会话状态
+    let dictationSession = {
+      active: false,
+      list: [],
+      index: 0,
+      mode: 'audio2en',
+      showCloze: true,
+      revealed: false,
+      correctCount: 0,
+      wrongCount: 0,
+      reviewGroupKey: null
+    };
+
+    /* ================= 1. 初始化与 LocalStorage 持久化 ================= */
+    function loadAppState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.words)) {
+            state.words = parsed.words;
+            state.reviews = parsed.reviews || {};
+            state.theme = parsed.theme || 'dark';
+            state.viewMode = parsed.viewMode || 'phone';
+            state.customFontSize = parsed.customFontSize || null;
+            state.currentBook = Number(parsed.currentBook) || 1;
+            state.currentUnit = Number(parsed.currentUnit) || 1;
+            state.currentStdGroup = Number(parsed.currentStdGroup) || 1;
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('读取 localStorage 失败，使用初始 SEED:', err);
+      }
+      state.words = JSON.parse(JSON.stringify(INITIAL_SEED_WORDS));
+      state.reviews = {};
+      saveAppState();
+    }
+
+    function saveAppState() {
+      try {
+        const payload = {
+          version: 1,
+          theme: state.theme,
+          viewMode: state.viewMode,
+          customFontSize: state.customFontSize,
+          currentBook: state.currentBook,
+          currentUnit: state.currentUnit,
+          currentStdGroup: state.currentStdGroup,
+          words: state.words,
+          reviews: state.reviews
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (err) {
+        showToast('⚠️ 本地存储空间不足或受限，请及时导出 JSON 备份');
+      }
+    }
+
+    function getAiConfig() {
+      const defaults = {
+        apiUrl: 'https://api.deepseek.com/v1/chat/completions',
+        apiKey: '',
+        model: 'deepseek-chat'
+      };
+      try {
+        const raw = localStorage.getItem(AI_CONFIG_KEY);
+        if (raw) {
+          const cfg = JSON.parse(raw);
+          return {
+            apiUrl: (cfg.apiUrl || defaults.apiUrl).trim(),
+            apiKey: (cfg.apiKey || '').trim(),
+            model: (cfg.model || defaults.model).trim()
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+      return defaults;
+    }
+
+    /* ================= 2. 主题、三端视图与无级字号控制 ================= */
+    function setTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      document.getElementById('themeDarkBtn').classList.toggle('active', theme === 'dark');
+      document.getElementById('themeLightBtn').classList.toggle('active', theme === 'light');
+      document.getElementById('themeEyeBtn').classList.toggle('active', theme === 'eye');
+      saveAppState();
+    }
+
+    function getDefaultViewFontSize(viewMode) {
+      if (viewMode === 'board') return 30;
+      if (viewMode === 'tablet') return 18;
+      return 15;
+    }
+
+    function setViewMode(viewMode) {
+      state.viewMode = viewMode;
+      state.customFontSize = null;
+      document.documentElement.setAttribute('data-view', viewMode);
+      document.documentElement.style.removeProperty('--custom-fs');
+      document.getElementById('viewPhoneBtn').classList.toggle('active', viewMode === 'phone');
+      document.getElementById('viewTabletBtn').classList.toggle('active', viewMode === 'tablet');
+      document.getElementById('viewBoardBtn').classList.toggle('active', viewMode === 'board');
+      updateFontIndicator();
+      saveAppState();
+    }
+
+    function adjustFontSize(delta) {
+      const base = state.customFontSize || getDefaultViewFontSize(state.viewMode);
+      const next = Math.min(48, Math.max(12, base + delta));
+      state.customFontSize = next;
+      document.documentElement.style.setProperty('--custom-fs', next + 'px');
+      updateFontIndicator();
+      saveAppState();
+    }
+
+    function resetFontSize() {
+      state.customFontSize = null;
+      document.documentElement.style.removeProperty('--custom-fs');
+      updateFontIndicator();
+      saveAppState();
+    }
+
+    function updateFontIndicator() {
+      const current = state.customFontSize || getDefaultViewFontSize(state.viewMode);
+      const btn = document.getElementById('fontResetBtn');
+      if (btn) btn.textContent = current + 'px';
+    }
+
+    /* ================= 3. 分组计算与筛选逻辑 ================= */
+    function getStdWords() {
+      return state.words.filter((w) => w.t === 'std');
+    }
+
+    function getStdGroupCount() {
+      const count = getStdWords().length;
+      return Math.max(1, Math.ceil(count / 55));
+    }
+
+    function getCurrentGroupKey() {
+      if (state.activeTab === 'tb') {
+        return `tb_${state.currentBook}_${state.currentUnit}`;
+      }
+      if (state.activeTab === 'std') {
+        return `std_${state.currentStdGroup}`;
+      }
+      return 'star';
+    }
+
+    function getGroupLabelByKey(groupKey) {
+      if (groupKey.startsWith('tb_')) {
+        const parts = groupKey.split('_');
+        const bookNames = ['', '必修一', '必修二', '必修三', '选择性必修一', '选择性必修二', '选择性必修三', '选择性必修四'];
+        const b = Number(parts[1]) || 1;
+        const u = Number(parts[2]) || 1;
+        return `${bookNames[b] || ('第' + b + '册')} Unit ${u}`;
+      }
+      if (groupKey.startsWith('std_')) {
+        const g = Number(groupKey.split('_')[1]) || 1;
+        return `课标3100 第 ${g} 组`;
+      }
+      return '★ 错题集';
+    }
+
+    function getWordsByGroupKey(groupKey) {
+      if (groupKey.startsWith('tb_')) {
+        const parts = groupKey.split('_');
+        const b = Number(parts[1]) || 1;
+        const u = Number(parts[2]) || 1;
+        return state.words.filter((w) => w.t === 'tb' && Number(w.b) === b && Number(w.u) === u);
+      }
+      if (groupKey.startsWith('std_')) {
+        const g = Number(groupKey.split('_')[1]) || 1;
+        const stdAll = getStdWords();
+        const start = (g - 1) * 55;
+        return stdAll.slice(start, start + 55);
+      }
+      if (groupKey === 'star') {
+        return state.words.filter((w) => Boolean(w.star));
+      }
+      return [];
+    }
+
+    function getVisibleWords() {
+      const q = state.searchQuery.trim().toLowerCase();
+      if (q) {
+        return state.words.filter((item) => {
+          return (
+            (item.w && item.w.toLowerCase().includes(q)) ||
+            (item.m && item.m.toLowerCase().includes(q)) ||
+            (item.x && item.x.toLowerCase().includes(q)) ||
+            (item.c && item.c.toLowerCase().includes(q))
+          );
+        });
+      }
+      if (state.activeTab === 'tb') {
+        return getWordsByGroupKey(`tb_${state.currentBook}_${state.currentUnit}`);
+      }
+      if (state.activeTab === 'std') {
+        return getWordsByGroupKey(`std_${state.currentStdGroup}`);
+      }
+      if (state.activeTab === 'star') {
+        return state.words.filter((w) => Boolean(w.star));
+      }
+      return [];
+    }
+
+    function isWordMissingDefinition(item) {
+      return Boolean(item.pending) || !item.m || !item.m.trim();
+    }
+
+    /* ================= 4. 界面渲染引擎 ================= */
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderAll() {
+      // 更新导航角标
+      const tbCount = state.words.filter((w) => w.t === 'tb').length;
+      const stdCount = state.words.filter((w) => w.t === 'std').length;
+      const starCount = state.words.filter((w) => Boolean(w.star)).length;
+      const dueCount = Object.values(state.reviews).filter((r) => isReviewDueToday(r)).length;
+
+      document.getElementById('badge_tb').textContent = tbCount;
+      document.getElementById('badge_std').textContent = stdCount;
+      document.getElementById('badge_star').textContent = starCount;
+      document.getElementById('badge_rev').textContent =
+        dueCount > 0 ? `${dueCount}到期` : Object.keys(state.reviews).length;
+
+      // 切换激活导航标签样式
+      ['tb', 'std', 'star', 'rev'].forEach((tab) => {
+        const btn = document.getElementById('tabBtn_' + tab);
+        if (btn) btn.classList.toggle('active', state.activeTab === tab);
+      });
+
+      const isRevTab = state.activeTab === 'rev' && !state.searchQuery.trim();
+      document.getElementById('listToolbarSection').style.display = isRevTab ? 'none' : 'flex';
+      document.getElementById('wordListSection').style.display = isRevTab ? 'none' : '';
+      document.getElementById('reviewCurveSection').style.display = isRevTab ? 'flex' : 'none';
+
+      if (isRevTab) {
+        renderReviewCurveSection();
+        return;
+      }
+
+      // 同步课本与课标下拉框
+      document.getElementById('tbSelectorWrap').style.display = state.activeTab === 'tb' ? 'flex' : 'none';
+      document.getElementById('stdSelectorWrap').style.display = state.activeTab === 'std' ? 'flex' : 'none';
+      document.getElementById('starHeaderWrap').style.display = state.activeTab === 'star' ? 'flex' : 'none';
+      document.getElementById('joinReviewCurveBtn').style.display =
+        state.activeTab === 'tb' || state.activeTab === 'std' ? 'inline-flex' : 'none';
+
+      document.getElementById('bookSelect').value = String(state.currentBook);
+      document.getElementById('unitSelect').value = String(state.currentUnit);
+
+      // 渲染课标 3100 分组选择器（每组 55 词）
+      const stdTotalGroups = getStdGroupCount();
+      if (state.currentStdGroup > stdTotalGroups) {
+        state.currentStdGroup = stdTotalGroups;
+      }
+      const stdSelect = document.getElementById('stdGroupSelect');
+      const stdAllCount = getStdWords().length;
+      let stdOptsHtml = '';
+      for (let g = 1; g <= stdTotalGroups; g++) {
+        const sIdx = (g - 1) * 55 + 1;
+        const eIdx = Math.min(g * 55, Math.max(stdAllCount, 1));
+        stdOptsHtml += `<option value="${g}">第 ${g} 组 (${sIdx}~${eIdx} 词)</option>`;
+      }
+      stdSelect.innerHTML = stdOptsHtml;
+      stdSelect.value = String(state.currentStdGroup);
+
+      // 获取当前列表单词
+      const list = getVisibleWords();
+      const missingList = list.filter(isWordMissingDefinition);
+      const missingBtn = document.getElementById('completeCurrentMissingBtn');
+      if (missingList.length > 0) {
+        missingBtn.style.display = 'inline-flex';
+        document.getElementById('missingCountSpan').textContent = String(missingList.length);
+      } else {
+        missingBtn.style.display = 'none';
+      }
+
+      // 更新本组复习状态按钮文案
+      if (state.activeTab === 'tb' || state.activeTab === 'std') {
+        const gKey = getCurrentGroupKey();
+        const revRecord = state.reviews[gKey];
+        const joinBtn = document.getElementById('joinReviewCurveBtn');
+        if (revRecord) {
+          joinBtn.textContent = `⏳ 已在复习曲线 (第${revRecord.stage + 1}档/${EBBINGHAUS_INTERVALS[revRecord.stage]}天)`;
+        } else {
+          joinBtn.textContent = '✓ 学完本组，加入复习曲线';
+        }
+      }
+
+      const checkedInList = list.filter((w) => checkedIds.has(w.id)).length;
+      const searchHint = state.searchQuery.trim()
+        ? `🔍 搜索“${state.searchQuery.trim()}”共找到 ${list.length} 词`
+        : `当前分组共 ${list.length} 词`;
+      document.getElementById('currentListStats').textContent = `${searchHint} · 已勾选 ${checkedInList} 词`;
+
+      renderWordCards(list);
+    }
+
+    function renderWordCards(list) {
+      const container = document.getElementById('wordListSection');
+      if (!list.length) {
+        container.innerHTML = `
+          <div class="glass-card empty-state">
+            <div style="font-size:2rem;">📭</div>
+            <div style="font-weight:700;color:var(--t);">当前分组暂无单词</div>
+            <div style="font-size:0.8rem;">您可以点击上方「📥 导入/AI补全」批量导入文档，或点击「➕ 新增词条」手动添加。</div>
+          </div>
+        `;
+        return;
+      }
+
+      const bookShort = ['', '必一', '必二', '必三', '选一', '选二', '选三', '选四'];
+
+      container.innerHTML = list
+        .map((item) => {
+          const isChecked = checkedIds.has(item.id);
+          const quizStep = quizStepMap.get(item.id) || 0;
+          const isMasked = state.quizMode && quizStep === 0;
+          const isExpanded = state.quizMode ? quizStep >= 2 : expandedIds.has(item.id);
+          const groupBadge =
+            item.t === 'tb'
+              ? `${bookShort[item.b] || ('B' + item.b)} U${item.u}`
+              : '课标3100';
+          const missing = isWordMissingDefinition(item);
+
+          let quizHint = '';
+          if (state.quizMode) {
+            if (quizStep === 0) quizHint = '1️⃣ 点第1下揭晓单词';
+            else if (quizStep === 1) quizHint = '2️⃣ 点第2下展开6大考点';
+            else quizHint = '✓ 已展开考点 (点击重置)';
+          } else {
+            quizHint = isExpanded ? '▲ 收起考点' : '▼ 展开考点';
+          }
+
+          return `
+            <article class="glass-card word-card ${isChecked ? 'checked-card' : ''} ${isExpanded ? 'expanded' : ''}" data-word-id="${escapeHtml(item.id)}">
+              <div class="card-top" onclick="handleWordCardClick('${escapeHtml(item.id)}')">
+                <div class="card-left">
+                  <input type="checkbox" class="word-check" ${isChecked ? 'checked' : ''} onclick="toggleWordCheck(event, '${escapeHtml(item.id)}')" aria-label="选择单词 ${escapeHtml(item.w)}" />
+                  <span class="word-spelling ${isMasked ? 'masked' : ''}">${escapeHtml(item.w)}</span>
+                  <span class="group-tag">${escapeHtml(groupBadge)}</span>
+                  ${missing ? '<span class="pending-tag">⏳ 待补全</span>' : ''}
+                </div>
+                <div class="card-tools" onclick="event.stopPropagation()">
+                  <button type="button" class="icon-btn" onclick="speakWord('${escapeHtml(item.w)}')" title="双引擎真人发音">🔊</button>
+                  <button type="button" class="icon-btn ${item.star ? 'starred' : ''}" onclick="toggleWordStar('${escapeHtml(item.id)}')" title="加入/移出★错题本">${item.star ? '★' : '☆'}</button>
+                  <button type="button" class="icon-btn" onclick="openEditWordModal('${escapeHtml(item.id)}')" title="编辑词条">编辑</button>
+                  <button type="button" class="icon-btn" onclick="deleteSingleWord('${escapeHtml(item.id)}')" title="删除词条">删除</button>
+                </div>
+              </div>
+
+              <div class="word-meaning-row" onclick="handleWordCardClick('${escapeHtml(item.id)}')">
+                <span>${item.m ? escapeHtml(item.m) : '<em style="color:var(--y);">[待补全释义 — 可点击上方“✨ 一键补全本组缺释义词”]</em>'}</span>
+                <span class="quiz-hint-badge">${quizHint}</span>
+              </div>
+
+              ${
+                item.x && (!state.quizMode || quizStep >= 2)
+                  ? `<div class="polysemy-highlight" onclick="handleWordCardClick('${escapeHtml(item.id)}')">💡 熟词生义：${escapeHtml(item.x)}</div>`
+                  : ''
+              }
+
+              <div class="word-details">
+                <div class="detail-item"><span class="detail-label">高考释义</span><span>${escapeHtml(item.m || '暂无')}</span></div>
+                <div class="detail-item"><span class="detail-label poly-label">熟词生义</span><span>${escapeHtml(item.x || '暂无特殊熟词生义')}</span></div>
+                <div class="detail-item"><span class="detail-label">经典例句</span><span>${escapeHtml(item.e || '暂无')}</span></div>
+                <div class="detail-item"><span class="detail-label">用法搭配</span><span>${escapeHtml(item.c || '暂无')}</span></div>
+                <div class="detail-item"><span class="detail-label">易混辨析</span><span>${escapeHtml(item.d || '暂无')}</span></div>
+                <div class="detail-item"><span class="detail-label">语法变形</span><span>${escapeHtml(item.g || '暂无')}</span></div>
+              </div>
+            </article>
+          `;
+        })
+        .join('');
+    }
+
+    /* ================= 5. 列表交互、抽测模式与双引擎真人发音 ================= */
+    function handleWordCardClick(wordId) {
+      const wordObj = state.words.find((w) => w.id === wordId);
+      if (state.quizMode) {
+        const cur = quizStepMap.get(wordId) || 0;
+        const next = (cur + 1) % 3;
+        quizStepMap.set(wordId, next);
+        if (next === 1 && wordObj) {
+          speakWord(wordObj.w);
+        }
+      } else {
+        if (expandedIds.has(wordId)) {
+          expandedIds.delete(wordId);
+        } else {
+          expandedIds.add(wordId);
+        }
+      }
+      renderAll();
+    }
+
+    function toggleQuizMode() {
+      state.quizMode = !state.quizMode;
+      quizStepMap.clear();
+      const btn = document.getElementById('quizModeBtn');
+      btn.textContent = state.quizMode ? '🙈 抽测模式: 开' : '🙈 抽测模式: 关';
+      btn.classList.toggle('active', state.quizMode);
+      showToast(
+        state.quizMode
+          ? '已开启抽测模式：点击卡片第1下揭晓单词，第2下展开6大考点'
+          : '已关闭抽测模式，恢复常规浏览'
+      );
+      renderAll();
+    }
+
+    function toggleWordCheck(ev, wordId) {
+      ev.stopPropagation();
+      if (checkedIds.has(wordId)) {
+        checkedIds.delete(wordId);
+      } else {
+        checkedIds.add(wordId);
+      }
+      renderAll();
+    }
+
+    function toggleWordStar(wordId) {
+      const target = state.words.find((w) => w.id === wordId);
+      if (!target) return;
+      target.star = !target.star;
+      saveAppState();
+      renderAll();
+      showToast(target.star ? `★ 已将 "${target.w}" 加入错题本` : `已将 "${target.w}" 移出错题本`);
+    }
+
+    function shuffleCurrentGroup() {
+      const visible = getVisibleWords();
+      if (visible.length < 2) {
+        showToast('当前列表词数不足，无需乱序');
+        return;
+      }
+      const visibleIds = new Set(visible.map((w) => w.id));
+      const positions = [];
+      const extracted = [];
+      state.words.forEach((w, idx) => {
+        if (visibleIds.has(w.id)) {
+          positions.push(idx);
+          extracted.push(w);
+        }
+      });
+      for (let i = extracted.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = extracted[i];
+        extracted[i] = extracted[j];
+        extracted[j] = temp;
+      }
+      positions.forEach((pos, idx) => {
+        state.words[pos] = extracted[idx];
+      });
+      saveAppState();
+      renderAll();
+      showToast('🔀 已对当前分组单词进行随机乱序');
+    }
+
+    function toggleExpandAll() {
+      const visible = getVisibleWords();
+      if (!visible.length) return;
+      if (state.quizMode) {
+        const allStep2 = visible.every((w) => (quizStepMap.get(w.id) || 0) === 2);
+        visible.forEach((w) => quizStepMap.set(w.id, allStep2 ? 0 : 2));
+        document.getElementById('expandAllBtn').textContent = allStep2 ? '📂 全部展开' : '📁 全部收起';
+      } else {
+        const allExpanded = visible.every((w) => expandedIds.has(w.id));
+        visible.forEach((w) => {
+          if (allExpanded) expandedIds.delete(w.id);
+          else expandedIds.add(w.id);
+        });
+        document.getElementById('expandAllBtn').textContent = allExpanded ? '📂 全部展开' : '📁 全部收起';
+      }
+      renderAll();
+    }
+
+    function toggleCheckAll() {
+      const visible = getVisibleWords();
+      if (!visible.length) return;
+      const allChecked = visible.every((w) => checkedIds.has(w.id));
+      visible.forEach((w) => {
+        if (allChecked) checkedIds.delete(w.id);
+        else checkedIds.add(w.id);
+      });
+      document.getElementById('checkAllBtn').textContent = allChecked ? '☑️ 全部勾选' : '⬜ 取消全选';
+      renderAll();
+    }
+
+    function confirmDeleteCurrentGroup() {
+      const visible = getVisibleWords();
+      if (!visible.length) {
+        showToast('当前列表没有可删除的单词');
+        return;
+      }
+      openConfirmDialog(
+        '🗑️ 删除本组全部单词',
+        `确定要删除当前列表中的全部 ${visible.length} 个单词吗？删除后不可恢复（建议先导出备份）。`,
+        () => {
+          const removeSet = new Set(visible.map((w) => w.id));
+          state.words = state.words.filter((w) => !removeSet.has(w.id));
+          removeSet.forEach((id) => {
+            expandedIds.delete(id);
+            checkedIds.delete(id);
+            quizStepMap.delete(id);
+          });
+          saveAppState();
+          renderAll();
+          showToast(`已删除本组 ${visible.length} 个单词`);
+        }
+      );
+    }
+
+    function deleteSingleWord(wordId) {
+      const target = state.words.find((w) => w.id === wordId);
+      if (!target) return;
+      state.words = state.words.filter((w) => w.id !== wordId);
+      expandedIds.delete(wordId);
+      checkedIds.delete(wordId);
+      quizStepMap.delete(wordId);
+      saveAppState();
+      renderAll();
+      showToast(`🗑️ 已删除单词 "${target.w}"`);
+    }
+
+    // 双引擎真人发音：优先有道在线真人语音，失败或断网无缝回退 speechSynthesis (en-US)
+    let currentYoudaoAudio = null;
+    function speakWord(wordText) {
+      const cleanWord = String(wordText || '').trim();
+      if (!cleanWord) return;
+      const youdaoUrl = 'https://dict.youdao.com/dictvoice?type=0&audio=' + encodeURIComponent(cleanWord);
+      let fallbackTriggered = false;
+
+      const triggerNativeFallback = () => {
+        if (fallbackTriggered) return;
+        fallbackTriggered = true;
+        if ('speechSynthesis' in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(cleanWord);
+            utter.lang = 'en-US';
+            utter.rate = 0.95;
+            window.speechSynthesis.speak(utter);
+          } catch (err) {
+            showToast('🔇 当前环境不支持语音合成');
+          }
+        }
+      };
+
+      try {
+        if (currentYoudaoAudio) {
+          currentYoudaoAudio.pause();
+          currentYoudaoAudio = null;
+        }
+        const audio = new Audio();
+        currentYoudaoAudio = audio;
+        const timer = setTimeout(() => {
+          triggerNativeFallback();
+        }, 2800);
+
+        audio.oncanplaythrough = () => {
+          clearTimeout(timer);
+        };
+        audio.onerror = () => {
+          clearTimeout(timer);
+          triggerNativeFallback();
+        };
+        audio.src = youdaoUrl;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {
+            clearTimeout(timer);
+            triggerNativeFallback();
+          });
+        }
+      } catch (e) {
+        triggerNativeFallback();
+      }
+    }
+
+    /* ================= 6. 导航切换与搜索 ================= */
+    function switchMainTab(tab) {
+      state.activeTab = tab;
+      if (state.searchQuery) {
+        state.searchQuery = '';
+        document.getElementById('globalSearchInput').value = '';
+        document.getElementById('searchClearBtn').style.display = 'none';
+      }
+      renderAll();
+    }
+
+    function handleBookUnitChange() {
+      state.currentBook = Number(document.getElementById('bookSelect').value) || 1;
+      state.currentUnit = Number(document.getElementById('unitSelect').value) || 1;
+      saveAppState();
+      renderAll();
+    }
+
+    function handleStdGroupChange() {
+      state.currentStdGroup = Number(document.getElementById('stdGroupSelect').value) || 1;
+      saveAppState();
+      renderAll();
+    }
+
+    function handleGlobalSearch(val) {
+      state.searchQuery = val || '';
+      document.getElementById('searchClearBtn').style.display = state.searchQuery ? 'inline-flex' : 'none';
+      renderAll();
+    }
+
+    function clearGlobalSearch() {
+      state.searchQuery = '';
+      document.getElementById('globalSearchInput').value = '';
+      document.getElementById('searchClearBtn').style.display = 'none';
+      renderAll();
+    }
+
+    /* ================= 7. 艾宾浩斯复习曲线 [1, 2, 4, 7, 15, 30] 天 ================= */
+    function getStartOfTodayMs() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    }
+
+    function isReviewDueToday(rev) {
+      if (!rev) return false;
+      const todayEnd = getStartOfTodayMs() + 24 * 3600 * 1000 - 1;
+      return rev.nextReviewAt <= todayEnd;
+    }
+
+    function markCurrentGroupLearned() {
+      const list = getVisibleWords();
+      if (!list.length) {
+        showToast('⚠️ 当前分组暂无单词，请先导入单词后再加入复习曲线');
+        return;
+      }
+      const gKey = getCurrentGroupKey();
+      const label = getGroupLabelByKey(gKey);
+      const todayMs = getStartOfTodayMs();
+      const nextMs = todayMs + EBBINGHAUS_INTERVALS[0] * 86400000;
+
+      state.reviews[gKey] = {
+        key: gKey,
+        label: label,
+        stage: 0,
+        lastReviewedAt: todayMs,
+        nextReviewAt: nextMs,
+        lastAccuracy: null
+      };
+      saveAppState();
+      renderAll();
+      showToast(`✓ 已将「${label}」加入艾宾浩斯复习曲线（1天后首次复习）`);
+    }
+
+    function simulateReviewDayAdvance() {
+      const keys = Object.keys(state.reviews);
+      if (!keys.length) {
+        showToast('暂无复习计划，请先在课本或课标组点击「✓ 学完本组，加入复习曲线」');
+        return;
+      }
+      keys.forEach((k) => {
+        state.reviews[k].nextReviewAt -= 86400000;
+      });
+      saveAppState();
+      renderAll();
+      showToast('⏩ 已将所有复习分组的计划日期向前推进 1 天');
+    }
+
+    function renderReviewCurveSection() {
+      const grid = document.getElementById('ebbinghausGrid');
+      const items = Object.values(state.reviews).sort((a, b) => a.nextReviewAt - b.nextReviewAt);
+
+      if (!items.length) {
+        grid.innerHTML = `
+          <div class="glass-card empty-state" style="grid-column: 1 / -1;">
+            <div style="font-size:2rem;">📅</div>
+            <div style="font-weight:700;color:var(--t);">暂无追踪中的艾宾浩斯复习分组</div>
+            <div style="font-size:0.8rem;">在「课本词库」或「课标3100」任意分组点击「✓ 学完本组，加入复习曲线」即可开启记忆追踪。</div>
+          </div>
+        `;
+        return;
+      }
+
+      const todayMs = getStartOfTodayMs();
+      grid.innerHTML = items
+        .map((rev) => {
+          const wordsCount = getWordsByGroupKey(rev.key).length;
+          const due = isReviewDueToday(rev);
+          const diffDays = Math.ceil((rev.nextReviewAt - todayMs) / 86400000);
+          const dueText = due
+            ? '🔥 今天到期'
+            : `${diffDays} 天后到期 (${new Date(rev.nextReviewAt).toLocaleDateString()})`;
+
+          const dotsHtml = EBBINGHAUS_INTERVALS.map((days, idx) => {
+            let cls = 'stage-dot';
+            if (idx < rev.stage) cls += ' done';
+            else if (idx === rev.stage) cls += ' current';
+            return `<span class="${cls}">${days}天</span>`;
+          }).join('');
+
+          return `
+            <div class="glass-card rev-card ${due ? 'due-today' : ''}">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
+                <span style="font-weight:800;font-size:0.95rem;">${escapeHtml(rev.label)}</span>
+                ${due ? `<span class="due-badge">今天到期</span>` : `<span class="group-tag">${escapeHtml(dueText)}</span>`}
+              </div>
+              <div style="font-size:0.78rem;color:var(--s);">
+                词数: ${wordsCount} 词 · 当前档位: 第 ${rev.stage + 1}/6 档 (间隔 ${EBBINGHAUS_INTERVALS[rev.stage]} 天)
+                ${rev.lastAccuracy !== null && rev.lastAccuracy !== undefined ? ` · 上次正确率: ${rev.lastAccuracy}%` : ''}
+              </div>
+              <div class="stage-dots">${dotsHtml}</div>
+              <div style="display:flex;justify-content:space-between;gap:0.4rem;margin-top:0.25rem;">
+                <button type="button" class="btn-primary" style="flex:1;" onclick="startDictationSession('${escapeHtml(rev.key)}')">
+                  📝 开始复习测评
+                </button>
+                <button type="button" class="btn-danger" onclick="removeReviewPlan('${escapeHtml(rev.key)}')" title="移出复习计划">移除</button>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function removeReviewPlan(groupKey) {
+      delete state.reviews[groupKey];
+      saveAppState();
+      renderAll();
+      showToast('已将该分组移出艾宾浩斯复习计划');
+    }
+
+    /* ================= 8. 多维听写测试（支持3种模式 + 挖空例句 + 键盘快捷键） ================= */
+    function openDictationModal() {
+      document.getElementById('dictationSetupView').style.display = 'flex';
+      document.getElementById('dictationActiveView').style.display = 'none';
+      document.getElementById('dictationSummaryView').style.display = 'none';
+      dictationSession.active = false;
+      handleDictScopeChange();
+      openModal('dictationModal');
+    }
+
+    function closeDictationModal() {
+      dictationSession.active = false;
+      closeModal('dictationModal');
+      renderAll();
+    }
+
+    function restartDictationSetup() {
+      document.getElementById('dictationSetupView').style.display = 'flex';
+      document.getElementById('dictationActiveView').style.display = 'none';
+      document.getElementById('dictationSummaryView').style.display = 'none';
+      dictationSession.active = false;
+    }
+
+    function handleDictScopeChange() {
+      const scope = document.getElementById('dictScopeSelect').value;
+      const multiWrap = document.getElementById('dictMultiGroupsWrap');
+      if (scope !== 'multi') {
+        multiWrap.style.display = 'none';
+        return;
+      }
+      multiWrap.style.display = 'flex';
+      // 汇总所有拥有词条的课本单元与课标组
+      const availableGroups = [];
+      for (let b = 1; b <= 7; b++) {
+        for (let u = 1; u <= 7; u++) {
+          const key = `tb_${b}_${u}`;
+          const cnt = getWordsByGroupKey(key).length;
+          if (cnt > 0) {
+            availableGroups.push({ key, label: `${getGroupLabelByKey(key)} (${cnt}词)` });
+          }
+        }
+      }
+      const stdGroups = getStdGroupCount();
+      for (let g = 1; g <= stdGroups; g++) {
+        const key = `std_${g}`;
+        const cnt = getWordsByGroupKey(key).length;
+        if (cnt > 0) {
+          availableGroups.push({ key, label: `${getGroupLabelByKey(key)} (${cnt}词)` });
+        }
+      }
+      multiWrap.innerHTML = availableGroups
+        .map(
+          (g) => `
+          <label class="glass-card" style="padding:0.25rem 0.5rem;font-size:0.78rem;display:inline-flex;align-items:center;gap:0.3rem;cursor:pointer;">
+            <input type="checkbox" class="dict-multi-cb" value="${escapeHtml(g.key)}" checked />
+            <span>${escapeHtml(g.label)}</span>
+          </label>
+        `
+        )
+        .join('');
+    }
+
+    function startDictationSession(reviewGroupKey) {
+      let pool = [];
+      if (reviewGroupKey) {
+        pool = getWordsByGroupKey(reviewGroupKey);
+        if (!pool.length) {
+          showToast('该复习分组内暂无单词');
+          return;
+        }
+        openModal('dictationModal');
+      } else {
+        const scope = document.getElementById('dictScopeSelect').value;
+        if (scope === 'current') {
+          pool = getVisibleWords();
+        } else if (scope === 'checked') {
+          pool = state.words.filter((w) => checkedIds.has(w.id));
+        } else if (scope === 'star') {
+          pool = state.words.filter((w) => Boolean(w.star));
+        } else if (scope === 'multi') {
+          const checkedBoxes = Array.from(document.querySelectorAll('.dict-multi-cb:checked'));
+          checkedBoxes.forEach((cb) => {
+            pool = pool.concat(getWordsByGroupKey(cb.value));
+          });
+        }
+      }
+
+      if (!pool.length) {
+        showToast('⚠️ 所选范围内没有可测试的单词，请先勾选或切换分组');
+        return;
+      }
+
+      const mode = document.getElementById('dictModeSelect').value || 'audio2en';
+      const showCloze = document.getElementById('dictClozeToggle').checked;
+
+      // 复制并洗牌
+      const shuffled = pool.slice();
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = shuffled[i];
+        shuffled[i] = shuffled[j];
+        shuffled[j] = tmp;
+      }
+
+      dictationSession = {
+        active: true,
+        list: shuffled,
+        index: 0,
+        mode: mode,
+        showCloze: showCloze,
+        revealed: false,
+        correctCount: 0,
+        wrongCount: 0,
+        reviewGroupKey: reviewGroupKey || null
+      };
+
+      document.getElementById('dictationSetupView').style.display = 'none';
+      document.getElementById('dictationSummaryView').style.display = 'none';
+      document.getElementById('dictationActiveView').style.display = 'flex';
+      renderCurrentDictationCard();
+    }
+
+    function buildClozeSentence(exampleStr, targetWord) {
+      if (!exampleStr || !targetWord) return '';
+      const escaped = targetWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}(?:s|es|ed|ing|d)?\\b`, 'gi');
+      if (regex.test(exampleStr)) {
+        return exampleStr.replace(regex, '______');
+      }
+      return exampleStr;
+    }
+
+    function renderCurrentDictationCard() {
+      const item = dictationSession.list[dictationSession.index];
+      if (!item) {
+        finishDictationSession();
+        return;
+      }
+      dictationSession.revealed = false;
+      document.getElementById('dictProgressCounter').textContent =
+        `第 ${dictationSession.index + 1} / ${dictationSession.list.length} 题`;
+      document.getElementById('dictScoreCounter').textContent =
+        `✓ 认识: ${dictationSession.correctCount} · ✗ 答错: ${dictationSession.wrongCount}`;
+
+      const inputEl = document.getElementById('dictUserSpellInput');
+      inputEl.value = '';
+      inputEl.focus();
+
+      const promptEl = document.getElementById('dictPromptText');
+      if (dictationSession.mode === 'audio2en') {
+        promptEl.textContent = '🎧 请听发音，默写英文单词与释义';
+        speakWord(item.w);
+      } else if (dictationSession.mode === 'zh2en') {
+        promptEl.textContent = item.m || '（该词暂无释义，请点击播放发音）';
+      } else {
+        promptEl.textContent = item.w;
+        speakWord(item.w);
+      }
+
+      updateDictationClozeDisplay(item);
+
+      document.getElementById('dictAnswerBox').classList.remove('revealed');
+      document.getElementById('dictRevealBtn').style.display = 'inline-flex';
+      document.getElementById('dictCorrectBtn').style.display = 'none';
+      document.getElementById('dictWrongBtn').style.display = 'none';
+    }
+
+    function updateDictationClozeDisplay(item) {
+      const clozeBox = document.getElementById('dictClozeBox');
+      const btn = document.getElementById('dictInlineClozeBtn');
+      btn.textContent = dictationSession.showCloze ? '💡 语境挖空提示: 开' : '💡 语境挖空提示: 关';
+      if (dictationSession.showCloze && item && item.e) {
+        clozeBox.style.display = 'block';
+        clozeBox.textContent = '语境提示：' + buildClozeSentence(item.e, item.w);
+      } else if (dictationSession.showCloze) {
+        clozeBox.style.display = 'block';
+        clozeBox.textContent = '语境提示：该词条暂无经典例句';
+      } else {
+        clozeBox.style.display = 'none';
+      }
+    }
+
+    function toggleDictationInlineCloze() {
+      dictationSession.showCloze = !dictationSession.showCloze;
+      const item = dictationSession.list[dictationSession.index];
+      updateDictationClozeDisplay(item);
+    }
+
+    function replayDictationAudio() {
+      const item = dictationSession.list[dictationSession.index];
+      if (item) speakWord(item.w);
+    }
+
+    function revealDictationAnswer() {
+      if (!dictationSession.active || dictationSession.revealed) return;
+      const item = dictationSession.list[dictationSession.index];
+      if (!item) return;
+      dictationSession.revealed = true;
+
+      const userTyped = document.getElementById('dictUserSpellInput').value.trim();
+      const checkSpan = document.getElementById('dictAnsSpellCheck');
+      if (userTyped) {
+        if (userTyped.toLowerCase() === item.w.toLowerCase()) {
+          checkSpan.textContent = '✓ 拼写完全正确';
+          checkSpan.style.color = 'var(--ok)';
+        } else {
+          checkSpan.textContent = `✗ 您的输入: ${userTyped}`;
+          checkSpan.style.color = 'var(--err)';
+        }
+      } else {
+        checkSpan.textContent = '';
+      }
+
+      document.getElementById('dictAnsWord').textContent = item.w;
+      document.getElementById('dictAnsMeaning').textContent = item.m || '暂无释义';
+      const polyEl = document.getElementById('dictAnsPoly');
+      if (item.x) {
+        polyEl.style.display = 'inline-flex';
+        polyEl.textContent = '💡 熟词生义：' + item.x;
+      } else {
+        polyEl.style.display = 'none';
+      }
+      document.getElementById('dictAnsExtra').textContent =
+        [item.e ? `例句: ${item.e}` : '', item.c ? `搭配: ${item.c}` : ''].filter(Boolean).join(' | ');
+
+      document.getElementById('dictAnswerBox').classList.add('revealed');
+      document.getElementById('dictRevealBtn').style.display = 'none';
+      document.getElementById('dictCorrectBtn').style.display = 'inline-flex';
+      document.getElementById('dictWrongBtn').style.display = 'inline-flex';
+      speakWord(item.w);
+    }
+
+    function markDictationResult(isCorrect) {
+      if (!dictationSession.active) return;
+      const item = dictationSession.list[dictationSession.index];
+      if (!item) return;
+
+      if (isCorrect) {
+        dictationSession.correctCount++;
+      } else {
+        dictationSession.wrongCount++;
+        // 错词自动加入 ★ 错题本
+        const target = state.words.find((w) => w.id === item.id);
+        if (target) target.star = true;
+      }
+
+      dictationSession.index++;
+      if (dictationSession.index >= dictationSession.list.length) {
+        finishDictationSession();
+      } else {
+        renderCurrentDictationCard();
+      }
+    }
+
+    function finishDictationSession() {
+      dictationSession.active = false;
+      saveAppState();
+
+      document.getElementById('dictationActiveView').style.display = 'none';
+      document.getElementById('dictationSummaryView').style.display = 'flex';
+
+      const total = dictationSession.list.length;
+      const acc = total > 0 ? Math.round((dictationSession.correctCount / total) * 100) : 0;
+      document.getElementById('dictSummaryHeadline').textContent = `🎉 测评完成 · 正确率 ${acc}%`;
+      document.getElementById('dictSummarySub').textContent =
+        `共测试 ${total} 词：回答正确 ${dictationSession.correctCount} 词，答错 ${dictationSession.wrongCount} 词（错词已自动加入 ★ 错题本）。`;
+
+      const feedbackEl = document.getElementById('dictReviewCurveFeedback');
+      const revKey = dictationSession.reviewGroupKey;
+      if (revKey && state.reviews[revKey]) {
+        const rev = state.reviews[revKey];
+        const oldStage = rev.stage;
+        let changeMsg = '';
+        if (acc >= 90) {
+          rev.stage = Math.min(EBBINGHAUS_INTERVALS.length - 1, rev.stage + 1);
+          changeMsg = `🚀 正确率 ≥90%，艾宾浩斯记忆档位升一档（第 ${oldStage + 1} 档 → 第 ${rev.stage + 1} 档，下次间隔 ${EBBINGHAUS_INTERVALS[rev.stage]} 天）！`;
+        } else if (acc < 70) {
+          rev.stage = Math.max(0, rev.stage - 1);
+          changeMsg = `⚠️ 正确率 <70%，艾宾浩斯记忆档位降一档巩固（第 ${oldStage + 1} 档 → 第 ${rev.stage + 1} 档，下次间隔 ${EBBINGHAUS_INTERVALS[rev.stage]} 天）。`;
+        } else {
+          changeMsg = `✨ 正确率在 70%~89% 之间，保持当前第 ${rev.stage + 1} 档（下次间隔 ${EBBINGHAUS_INTERVALS[rev.stage]} 天）。`;
+        }
+        const todayMs = getStartOfTodayMs();
+        rev.lastReviewedAt = todayMs;
+        rev.nextReviewAt = todayMs + EBBINGHAUS_INTERVALS[rev.stage] * 86400000;
+        rev.lastAccuracy = acc;
+        saveAppState();
+
+        feedbackEl.style.display = 'block';
+        feedbackEl.textContent = changeMsg;
+      } else {
+        feedbackEl.style.display = 'none';
+      }
+    }
+
+    function handleDictInputKeydown(ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        if (!dictationSession.revealed) {
+          revealDictationAnswer();
+        }
+      }
+    }
+
+    // 全局键盘快捷键监听（听写模式下支持 Enter / 左右方向键 / 数字键 1 和 2）
+    window.addEventListener('keydown', (ev) => {
+      if (!dictationSession.active) return;
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (!dictationSession.revealed) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          revealDictationAnswer();
+        }
+        return;
+      }
+      // 已揭晓答案状态下，即使焦点在输入框也允许用方向键或 1/2 快速判定
+      if (ev.key === 'ArrowLeft' || (ev.key === '1' && activeTag !== 'input')) {
+        ev.preventDefault();
+        markDictationResult(true);
+      } else if (ev.key === 'ArrowRight' || (ev.key === '2' && activeTag !== 'input')) {
+        ev.preventDefault();
+        markDictationResult(false);
+      }
+    });
+
+    /* ================= 9. 文档导入与多格式深度解析（防漏词、防假死、防扫描件静默） ================= */
+    function openImportModal() {
+      document.getElementById('importTargetType').value = state.activeTab === 'std' ? 'std' : 'tb';
+      document.getElementById('importBookSelect').value = String(state.currentBook);
+      document.getElementById('importUnitSelect').value = String(state.currentUnit);
+      toggleImportTargetSelectors();
+      openModal('importModal');
+    }
+
+    function toggleImportTargetSelectors() {
+      const t = document.getElementById('importTargetType').value;
+      document.getElementById('importTbGroupWrap').style.display = t === 'tb' ? 'flex' : 'none';
+    }
+
+    function fillDemoPureWords() {
+      document.getElementById('importTextarea').value = [
+        'resilient',
+        'ambiguous',
+        'inevitable',
+        'compromise|n. 妥协，折中；v. 妥协，危及|[熟词生义] v. 违背（原则），危及（安全）|They reached a compromise after long talks.|reach a compromise 达成妥协；compromise on 在...上妥协|concession 侧重让步|compromising adj.'
+      ].join('\n');
+    }
+
+    // 从句子集合中提取有效英文单词并过滤常见停用词
+    function extractCleanWordsFromSentences(sentences) {
+      const seen = new Set();
+      const result = [];
+      sentences.forEach((sentence) => {
+        const matches = String(sentence || '').match(/[A-Za-z]{3,24}/g);
+        if (!matches) return;
+        matches.forEach((raw) => {
+          const lower = raw.toLowerCase();
+          if (STOP_WORDS.has(lower)) return;
+          if (!seen.has(lower)) {
+            seen.add(lower);
+            result.push(lower);
+          }
+        });
+      });
+      return result;
+    }
+
+    async function handleFileSelect(inputEl) {
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const progressBox = document.getElementById('fileParseProgressBox');
+      const statusText = document.getElementById('fileParseStatusText');
+      const percentText = document.getElementById('fileParsePercentText');
+      const progressBar = document.getElementById('fileParseProgressBar');
+
+      const updateProgress = (msg, pct) => {
+        progressBox.classList.add('show');
+        statusText.textContent = msg;
+        percentText.textContent = Math.round(pct) + '%';
+        progressBar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+      };
+
+      try {
+        if (ext === 'txt' || ext === 'csv' || ext === 'tsv') {
+          updateProgress(`正在读取文本文件 ${file.name}...`, 50);
+          const text = await file.text();
+          document.getElementById('importTextarea').value = text.trim();
+          updateProgress(`✅ 已成功载入 ${file.name}`, 100);
+          showToast(`📄 已读取 ${file.name}`);
+        } else if (ext === 'docx' || ext === 'pptx') {
+          await parseOfficeDocumentWithJSZip(file, ext, updateProgress);
+        } else if (ext === 'pdf') {
+          await parsePdfStreaming(file, updateProgress);
+        } else {
+          showToast('⚠️ 不支持的文件格式，请选择 .txt/.csv/.tsv/.docx/.pptx/.pdf');
+        }
+      } catch (err) {
+        console.error('文件解析异常:', err);
+        showToast('❌ 解析文件出错: ' + (err.message || '未知错误'));
+      } finally {
+        inputEl.value = '';
+      }
+    }
+
+    // .pptx / .docx 深度解析：使用 JSZip，按 <a:p> 或 <w:p> 聚合内部所有 <a:t> 或 <w:t> 节点拼接成完整句子后再正则提取单词
+    async function parseOfficeDocumentWithJSZip(file, ext, updateProgress) {
+      if (!window.JSZip) {
+        showToast('❌ JSZip 库尚未加载完成，请检查网络连接');
+        return;
+      }
+      updateProgress(`正在通过 JSZip 解压 ${file.name}...`, 15);
+      const arrayBuffer = await file.arrayBuffer();
+      const zip = await window.JSZip.loadAsync(arrayBuffer);
+
+      let targetXmlPaths = [];
+      if (ext === 'docx') {
+        if (zip.file('word/document.xml')) {
+          targetXmlPaths.push('word/document.xml');
+        }
+      } else if (ext === 'pptx') {
+        const regexList = [
+          /^ppt\/slides\/slide\d+\.xml$/i,
+          /^ppt\/notesSlides\/notesSlide\d+\.xml$/i,
+          /^ppt\/diagrams\/data\d+\.xml$/i
+        ];
+        Object.keys(zip.files).forEach((path) => {
+          if (regexList.some((rgx) => rgx.test(path))) {
+            targetXmlPaths.push(path);
+          }
+        });
+      }
+
+      if (!targetXmlPaths.length) {
+        showToast('⚠️ 未在文档压缩包中找到标准内容 XML 节点');
+        return;
+      }
+
+      const paragraphTag = ext === 'docx' ? 'w:p' : 'a:p';
+      const textTag = ext === 'docx' ? 'w:t' : 'a:t';
+      const localParaName = 'p';
+      const localTextName = 't';
+
+      const aggregatedSentences = [];
+      const domParser = new DOMParser();
+
+      for (let i = 0; i < targetXmlPaths.length; i++) {
+        const xmlPath = targetXmlPaths[i];
+        updateProgress(
+          `正在聚合段落节点 (${i + 1}/${targetXmlPaths.length}): ${xmlPath}`,
+          20 + ((i + 1) / targetXmlPaths.length) * 65
+        );
+        const xmlContent = await zip.file(xmlPath).async('string');
+        const xmlDoc = domParser.parseFromString(xmlContent, 'application/xml');
+
+        // 兼容命名空间与标签名查找所有段落节点 (<a:p> 或 <w:p>)
+        let pNodes = Array.from(xmlDoc.getElementsByTagName(paragraphTag));
+        if (!pNodes.length) {
+          pNodes = Array.from(xmlDoc.getElementsByTagNameNS('*', localParaName));
+        }
+
+        pNodes.forEach((pNode) => {
+          let tNodes = Array.from(pNode.getElementsByTagName(textTag));
+          if (!tNodes.length) {
+            tNodes = Array.from(pNode.getElementsByTagNameNS('*', localTextName));
+          }
+          // 关键防坑：将该段落内所有文本节点无缝拼接成完整句子，避免局部加粗/变色把单个英文单词切碎
+          const fullParagraphSentence = tNodes.map((tn) => tn.textContent || '').join('');
+          if (fullParagraphSentence.trim()) {
+            aggregatedSentences.push(fullParagraphSentence.trim());
+          }
+        });
+      }
+
+      const extractedWords = extractCleanWordsFromSentences(aggregatedSentences);
+      updateProgress(`✅ 解析完成，共提取 ${extractedWords.length} 个去重英文单词`, 100);
+      if (!extractedWords.length) {
+        openConfirmDialog(
+          '⚠️ 未提取到有效英文单词',
+          `已遍历 ${file.name} 的全部段落节点，但未检测到有效英文单词。请确认文档中是否包含英文文本。`,
+          null
+        );
+        return;
+      }
+      document.getElementById('importTextarea').value = extractedWords.join('\n');
+      showToast(`✅ 从 ${file.name} 成功聚合提取 ${extractedWords.length} 个单词`);
+    }
+
+    // 大体积 .pdf 流式分页解析：逐页读取 + 实时进度条 + 每5页 setTimeout 让出主线程 + 0词弹窗提示 OCR
+    async function parsePdfStreaming(file, updateProgress) {
+      if (!window.pdfjsLib) {
+        showToast('❌ pdf.js 库尚未加载完成，请检查网络连接');
+        return;
+      }
+      updateProgress('正在初始化 PDF 文档...', 5);
+      const arrayBuffer = await file.arrayBuffer();
+      const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdfDoc = await loadingTask.promise;
+      const totalPages = pdfDoc.numPages || 0;
+      const pageSentences = [];
+
+      for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+        const pct = (pageNum / Math.max(1, totalPages)) * 95;
+        updateProgress(`正在读取第 ${pageNum} / ${totalPages} 页`, pct);
+
+        const page = await pdfDoc.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageStr = (textContent.items || []).map((it) => it.str || '').join(' ');
+        if (pageStr.trim()) {
+          pageSentences.push(pageStr);
+        }
+
+        // 每读取 5 页通过 setTimeout 让出主线程，防止大体积 PDF 导致页面假死
+        if (pageNum % 5 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+
+      const extractedWords = extractCleanWordsFromSentences(pageSentences);
+      updateProgress(`读取完成 (${totalPages}/${totalPages} 页)`, 100);
+
+      // 若整份 PDF 提取出的有效单词数为 0，必须弹窗明确提示 OCR，严禁静默显示导入成功
+      if (extractedWords.length === 0) {
+        openConfirmDialog(
+          '⚠️ 未检测到文字层',
+          '未检测到文字层（该文件可能为纯图片或扫描版 PDF），请先进行 OCR 识别',
+          null
+        );
+        return;
+      }
+
+      document.getElementById('importTextarea').value = extractedWords.join('\n');
+      showToast(`✅ PDF 解析完成，共提取 ${extractedWords.length} 个单词`);
+    }
+
+    /* ================= 10. 解析文本框行数据与按「分组+拼写」智能去重合并 ================= */
+    function parseLinesToWordRecords(rawText, targetType, bookNum, unitNum) {
+      const lines = String(rawText || '')
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      const records = [];
+      lines.forEach((line) => {
+        const delimiter = line.includes('\t') ? '\t' : '|';
+        const parts = line.split(delimiter).map((s) => s.trim());
+        const w = (parts[0] || '').replace(/^[^A-Za-z]+|[^A-Za-z -]+$/g, '').trim();
+        if (!w) return;
+        const m = parts[1] || '';
+        const x = parts[2] || '';
+        const e = parts[3] || '';
+        const c = parts[4] || '';
+        const d = parts[5] || '';
+        const g = parts[6] || '';
+        const hasDef = Boolean(m);
+
+        records.push({
+          t: targetType,
+          b: targetType === 'tb' ? Number(bookNum) || 1 : 1,
+          u: targetType === 'tb' ? Number(unitNum) || 1 : 1,
+          w,
+          m,
+          x,
+          e,
+          c,
+          d,
+          g,
+          pending: !hasDef
+        });
+      });
+      return records;
+    }
+
+    // 去重合并规则：按「所属分组 + 单词拼写（忽略大小写）」自动去重，已存在词条仅更新补全其空白字段，绝不用空字符串覆盖已有内容
+    function upsertWordRecords(records) {
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      records.forEach((rec) => {
+        const existing = state.words.find((item) => {
+          const sameSpell = item.w.toLowerCase() === rec.w.toLowerCase();
+          if (!sameSpell) return false;
+          if (rec.t === 'tb' && item.t === 'tb') {
+            return Number(item.b) === Number(rec.b) && Number(item.u) === Number(rec.u);
+          }
+          return item.t === 'std' && rec.t === 'std';
+        });
+
+        if (existing) {
+          let touched = false;
+          ['m', 'x', 'e', 'c', 'd', 'g'].forEach((field) => {
+            if ((!existing[field] || !existing[field].trim()) && rec[field] && rec[field].trim()) {
+              existing[field] = rec[field].trim();
+              touched = true;
+            }
+          });
+          if (existing.m && existing.m.trim()) {
+            existing.pending = false;
+          }
+          if (touched) updatedCount++;
+        } else {
+          state.words.push({
+            id: 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+            t: rec.t,
+            b: rec.b,
+            u: rec.u,
+            w: rec.w,
+            m: rec.m || '',
+            x: rec.x || '',
+            e: rec.e || '',
+            c: rec.c || '',
+            d: rec.d || '',
+            g: rec.g || '',
+            star: false,
+            pending: !rec.m || !rec.m.trim()
+          });
+          addedCount++;
+        }
+      });
+
+      saveAppState();
+      return { addedCount, updatedCount };
+    }
+
+    function confirmImportFromTextarea() {
+      const raw = document.getElementById('importTextarea').value;
+      if (!raw.trim()) {
+        showToast('⚠️ 请先输入单词或选择文件解析');
+        return;
+      }
+      const targetType = document.getElementById('importTargetType').value;
+      const b = Number(document.getElementById('importBookSelect').value) || 1;
+      const u = Number(document.getElementById('importUnitSelect').value) || 1;
+
+      const records = parseLinesToWordRecords(raw, targetType, b, u);
+      if (!records.length) {
+        showToast('⚠️ 未识别到有效英文单词');
+        return;
+      }
+
+      const { addedCount, updatedCount } = upsertWordRecords(records);
+      state.activeTab = targetType;
+      if (targetType === 'tb') {
+        state.currentBook = b;
+        state.currentUnit = u;
+      }
+      closeModal('importModal');
+      renderAll();
+      showToast(`✅ 导入完成：新增 ${addedCount} 词，补全更新 ${updatedCount} 词`);
+    }
+
+    /* ================= 11. 分批队列式 AI 自动补全（每批10词 + 重试1次 + 拒绝 |||||| 空数据） ================= */
+    function openAiConfigModal() {
+      const cfg = getAiConfig();
+      document.getElementById('aiApiUrlInput').value = cfg.apiUrl;
+      document.getElementById('aiApiKeyInput').value = cfg.apiKey;
+      document.getElementById('aiModelInput').value = cfg.model;
+      openModal('aiConfigModal');
+    }
+
+    function resetAiConfigDefault() {
+      document.getElementById('aiApiUrlInput').value = 'https://api.deepseek.com/v1/chat/completions';
+      document.getElementById('aiApiKeyInput').value = '';
+      document.getElementById('aiModelInput').value = 'deepseek-chat';
+    }
+
+    function saveAiConfig() {
+      const cfg = {
+        apiUrl: document.getElementById('aiApiUrlInput').value.trim() || 'https://api.deepseek.com/v1/chat/completions',
+        apiKey: document.getElementById('aiApiKeyInput').value.trim(),
+        model: document.getElementById('aiModelInput').value.trim() || 'deepseek-chat'
+      };
+      try {
+        localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(cfg));
+        showToast('💾 AI 检索配置已保存');
+      } catch (e) {
+        showToast('⚠️ 保存配置失败');
+      }
+      closeModal('aiConfigModal');
+    }
+
+    function togglePauseAiQueue() {
+      if (!aiQueueController.running) return;
+      aiQueueController.paused = !aiQueueController.paused;
+      const label = aiQueueController.paused ? '▶️ 继续' : '⏸ 暂停';
+      const btn1 = document.getElementById('modalAiPauseBtn');
+      const btn2 = document.getElementById('inlineAiPauseBtn');
+      if (btn1) btn1.textContent = label;
+      if (btn2) btn2.textContent = label;
+      showToast(aiQueueController.paused ? '⏸ 已暂停分批检索队列，可随时点击继续' : '▶️ 已继续分批检索队列');
+    }
+
+    function stopAiQueue() {
+      if (!aiQueueController.running) return;
+      aiQueueController.stopped = true;
+      aiQueueController.paused = false;
+      showToast('⏹ 正在停止检索队列（已完成批次的数据已安全保留）');
+    }
+
+    async function waitWhilePaused() {
+      while (aiQueueController.paused && !aiQueueController.stopped) {
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    }
+
+    // 单批请求大模型接口（要求返回严格 JSON 数组补全 7 栏高考考点）
+    async function fetchBatchFromLlm(wordStrings, cfg) {
+      const systemPrompt = `你是一位资深中国高考英语教研员。请针对给定的英文单词列表，输出严格的 JSON 数组（不要包裹在 markdown 代码块以外的任何多余解释中）。
+数组中每个对象必须包含以下字段：
+"w": 单词原拼写,
+"m": 高考常考词性与核心中文释义,
+"x": 高考熟词生义（如无特殊生义请写高频引申义）,
+"e": 一句地道简练的高考难度英文例句并附简短中文翻译,
+"c": 2~3个高考高频短语固定搭配,
+"d": 易混词简明辨析,
+"g": 语法填空常见派生词或词形变化（过去式/分词/名词/形容词等）。`;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 28000);
+
+      try {
+        const res = await fetch(cfg.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cfg.apiKey}`
+          },
+          body: JSON.stringify({
+            model: cfg.model || 'deepseek-chat',
+            temperature: 0.2,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: JSON.stringify(wordStrings) }
+            ]
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        const content = data.choices && data.choices[0] && data.choices[0].message
+          ? data.choices[0].message.content
+          : '';
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          throw new Error('模型返回格式非有效 JSON 数组');
+        }
+        const arr = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(arr)) {
+          throw new Error('解析结果非数组');
+        }
+        return arr;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    }
+
+    // 未配置 API Key 时降级调用免费 api.dictionaryapi.dev（每次请求严格间隔 350ms 防止 429 限流）
+    async function fetchBatchFromFreeDictionary(wordStrings) {
+      const results = [];
+      for (let i = 0; i < wordStrings.length; i++) {
+        if (aiQueueController.stopped) break;
+        await waitWhilePaused();
+        const w = wordStrings[i];
+        try {
+          const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(w)}`);
+          if (res.ok) {
+            const data = await res.json();
+            const entry = Array.isArray(data) && data[0] ? data[0] : null;
+            if (entry && Array.isArray(entry.meanings) && entry.meanings.length > 0) {
+              const mParts = [];
+              let firstEx = '';
+              let secondDef = '';
+              const synonyms = [];
+
+              entry.meanings.forEach((meaningObj, mIdx) => {
+                const pos = meaningObj.partOfSpeech ? `${meaningObj.partOfSpeech}. ` : '';
+                const defs = meaningObj.definitions || [];
+                if (defs[0] && defs[0].definition) {
+                  mParts.push(`${pos}${defs[0].definition}`);
+                  if (!firstEx && defs[0].example) firstEx = defs[0].example;
+                }
+                if (defs[1] && defs[1].definition && !secondDef) {
+                  secondDef = `${pos}${defs[1].definition}`;
+                }
+                if (Array.isArray(meaningObj.synonyms)) {
+                  synonyms.push(...meaningObj.synonyms.slice(0, 3));
+                }
+              });
+
+              const defSummary = mParts.slice(0, 2).join('；');
+              if (defSummary) {
+                results.push({
+                  w: w,
+                  m: defSummary,
+                  x: secondDef || '高考延伸义项详见语境',
+                  e: firstEx || `Please master the usage of "${w}" in context.`,
+                  c: `common usage of ${w}`,
+                  d: synonyms.length ? `近义辨析: ${synonyms.slice(0, 3).join(', ')}` : '注意上下文词性转换',
+                  g: entry.phonetic ? `音标: ${entry.phonetic}` : `${w}s / ${w}ed / ${w}ing`
+                });
+              }
+            }
+          }
+        } catch (err) {
+          // 单词失败保留为空，外层将保持原纯单词待补全状态
+        }
+        // 每次请求间隔 350ms 防止 429 限流
+        if (i < wordStrings.length - 1) {
+          await new Promise((r) => setTimeout(r, 350));
+        }
+      }
+      return results;
+    }
+
+    // 带 1 次自动重试的单批执行器
+    async function requestBatchWithRetry(wordStrings, cfg) {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (cfg.apiKey) {
+            return await fetchBatchFromLlm(wordStrings, cfg);
+          } else {
+            return await fetchBatchFromFreeDictionary(wordStrings);
+          }
+        } catch (err) {
+          console.warn(`第 ${attempt} 次批次请求失败:`, err);
+          if (attempt === 2) {
+            return null; // 重试后仍失败，返回 null 由调用方保留原纯单词并标记待补全
+          }
+          await new Promise((r) => setTimeout(r, 600));
+        }
+      }
+      return null;
+    }
+
+    // 场景 A：在导入弹窗中点击「✨ 分批自动检索释义」，每成功一批实时回写文本框（拒绝 |||||| 空数据）
+    async function startBatchAiFromTextarea() {
+      if (aiQueueController.running) {
+        showToast('⏳ 已有检索队列正在运行中');
+        return;
+      }
+      const textarea = document.getElementById('importTextarea');
+      const rawLines = textarea.value
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      if (!rawLines.length) {
+        showToast('⚠️ 文本框为空，请先输入或解析需要补全的单词');
+        return;
+      }
+
+      // 拆解每一行，找出缺失释义的行索引
+      const lineItems = rawLines.map((line) => {
+        const sep = line.includes('\t') ? '\t' : '|';
+        const parts = line.split(sep).map((s) => s.trim());
+        return {
+          raw: line,
+          w: (parts[0] || '').replace(/^[^A-Za-z]+|[^A-Za-z -]+$/g, '').trim(),
+          m: parts[1] || '',
+          x: parts[2] || '',
+          e: parts[3] || '',
+          c: parts[4] || '',
+          d: parts[5] || '',
+          g: parts[6] || ''
+        };
+      });
+
+      const missingIndices = [];
+      lineItems.forEach((it, idx) => {
+        if (it.w && !it.m) missingIndices.push(idx);
+      });
+
+      if (!missingIndices.length) {
+        showToast('✨ 当前文本框中的所有单词均已包含释义，无需重复检索');
+        return;
+      }
+
+      const cfg = getAiConfig();
+      aiQueueController = { running: true, paused: false, stopped: false };
+      const pBox = document.getElementById('modalAiProgressBox');
+      const pText = document.getElementById('modalAiStatusText');
+      const pBar = document.getElementById('modalAiProgressBar');
+      document.getElementById('modalAiPauseBtn').textContent = '⏸ 暂停';
+      pBox.classList.add('show');
+
+      const totalBatches = Math.ceil(missingIndices.length / 10);
+      let successWordCount = 0;
+      let failWordCount = 0;
+
+      for (let bIdx = 0; bIdx < totalBatches; bIdx++) {
+        if (aiQueueController.stopped) break;
+        await waitWhilePaused();
+        if (aiQueueController.stopped) break;
+
+        const batchIndices = missingIndices.slice(bIdx * 10, (bIdx + 1) * 10);
+        const batchWords = batchIndices.map((i) => lineItems[i].w);
+
+        pText.textContent = `正在检索第 ${bIdx + 1} / ${totalBatches} 批 (${batchWords.join(', ')})...`;
+        pBar.style.width = Math.round((bIdx / totalBatches) * 100) + '%';
+
+        const batchResult = await requestBatchWithRetry(batchWords, cfg);
+        const resultMap = new Map();
+        if (Array.isArray(batchResult)) {
+          batchResult.forEach((obj) => {
+            if (obj && obj.w && obj.m && String(obj.m).trim()) {
+              resultMap.set(String(obj.w).toLowerCase().trim(), obj);
+            }
+          });
+        }
+
+        batchIndices.forEach((lineIdx) => {
+          const item = lineItems[lineIdx];
+          const matched = resultMap.get(item.w.toLowerCase());
+          if (matched && matched.m && String(matched.m).trim()) {
+            item.m = String(matched.m || '').trim();
+            item.x = String(matched.x || '').trim();
+            item.e = String(matched.e || '').trim();
+            item.c = String(matched.c || '').trim();
+            item.d = String(matched.d || '').trim();
+            item.g = String(matched.g || '').trim();
+            item.raw = [item.w, item.m, item.x, item.e, item.c, item.d, item.g].join('|');
+            successWordCount++;
+          } else {
+            // 严禁拼接成空白的 |||||| 覆盖原数据，严格保留原纯单词
+            item.raw = item.w;
+            failWordCount++;
+          }
+        });
+
+        // 断点保护：每完成一批立即更新文本框
+        textarea.value = lineItems.map((it) => it.raw).join('\n');
+        pBar.style.width = Math.round(((bIdx + 1) / totalBatches) * 100) + '%';
+      }
+
+      aiQueueController.running = false;
+      pText.textContent = `检索结束：成功补全 ${successWordCount} 词，未补全保留原词 ${failWordCount} 词`;
+      showToast(`✨ 分批检索完成：成功 ${successWordCount} 词，待补全 ${failWordCount} 词`);
+    }
+
+    // 场景 B：在主界面点击「✨ 一键补全本组缺释义词」，按每批 10 个分组补全并实时持久化写入 localStorage
+    async function completeMissingInCurrentGroup() {
+      if (aiQueueController.running) {
+        showToast('⏳ 已有检索队列正在运行中');
+        return;
+      }
+      const visible = getVisibleWords();
+      const missingWords = visible.filter(isWordMissingDefinition);
+      if (!missingWords.length) {
+        showToast('✨ 本组所有单词均已有释义');
+        return;
+      }
+
+      const cfg = getAiConfig();
+      aiQueueController = { running: true, paused: false, stopped: false };
+      const pBox = document.getElementById('inlineAiProgressBox');
+      const pText = document.getElementById('inlineAiStatusText');
+      const pBar = document.getElementById('inlineAiProgressBar');
+      document.getElementById('inlineAiPauseBtn').textContent = '⏸ 暂停';
+      pBox.classList.add('show');
+
+      const totalBatches = Math.ceil(missingWords.length / 10);
+      let completedCount = 0;
+      let stillPendingCount = 0;
+
+      for (let bIdx = 0; bIdx < totalBatches; bIdx++) {
+        if (aiQueueController.stopped) break;
+        await waitWhilePaused();
+        if (aiQueueController.stopped) break;
+
+        const batchItems = missingWords.slice(bIdx * 10, (bIdx + 1) * 10);
+        const batchSpellings = batchItems.map((w) => w.w);
+
+        pText.textContent = `正在补全第 ${bIdx + 1} / ${totalBatches} 批 (${batchSpellings.join(', ')})...`;
+        pBar.style.width = Math.round((bIdx / totalBatches) * 100) + '%';
+
+        const batchResult = await requestBatchWithRetry(batchSpellings, cfg);
+        const resultMap = new Map();
+        if (Array.isArray(batchResult)) {
+          batchResult.forEach((obj) => {
+            if (obj && obj.w && obj.m && String(obj.m).trim()) {
+              resultMap.set(String(obj.w).toLowerCase().trim(), obj);
+            }
+          });
+        }
+
+        batchItems.forEach((wordObj) => {
+          const matched = resultMap.get(wordObj.w.toLowerCase());
+          if (matched && matched.m && String(matched.m).trim()) {
+            wordObj.m = String(matched.m || '').trim();
+            wordObj.x = String(matched.x || '').trim();
+            wordObj.e = String(matched.e || '').trim();
+            wordObj.c = String(matched.c || '').trim();
+            wordObj.d = String(matched.d || '').trim();
+            wordObj.g = String(matched.g || '').trim();
+            wordObj.pending = false;
+            completedCount++;
+          } else {
+            // 保持原纯单词并标记为 待补全 状态，绝不写入空白分隔符
+            wordObj.pending = true;
+            stillPendingCount++;
+          }
+        });
+
+        // 断点保护：每成功一批立即写入 localStorage 并刷新列表
+        saveAppState();
+        renderAll();
+        pBar.style.width = Math.round(((bIdx + 1) / totalBatches) * 100) + '%';
+      }
+
+      aiQueueController.running = false;
+      pText.textContent = `本组补全结束：成功 ${completedCount} 词，仍待补全 ${stillPendingCount} 词`;
+      showToast(`✨ 补全完成：成功 ${completedCount} 词，待补全 ${stillPendingCount} 词`);
+    }
+
+    /* ================= 12. 单条编辑与新增模态框 ================= */
+    function openEditWordModal(wordId) {
+      const titleEl = document.getElementById('editWordModalTitle');
+      if (!wordId) {
+        titleEl.textContent = '➕ 新增高考 7 栏词条';
+        document.getElementById('editWordId').value = '';
+        document.getElementById('editWordType').value = state.activeTab === 'std' ? 'std' : 'tb';
+        document.getElementById('editWordBook').value = String(state.currentBook);
+        document.getElementById('editWordUnit').value = String(state.currentUnit);
+        document.getElementById('editWordSpelling').value = '';
+        document.getElementById('editWordMeaning').value = '';
+        document.getElementById('editWordPolysemy').value = '';
+        document.getElementById('editWordExample').value = '';
+        document.getElementById('editWordCollocation').value = '';
+        document.getElementById('editWordDiff').value = '';
+        document.getElementById('editWordGrammar').value = '';
+      } else {
+        const item = state.words.find((w) => w.id === wordId);
+        if (!item) return;
+        titleEl.textContent = `✏️ 编辑词条：${item.w}`;
+        document.getElementById('editWordId').value = item.id;
+        document.getElementById('editWordType').value = item.t || 'tb';
+        document.getElementById('editWordBook').value = String(item.b || 1);
+        document.getElementById('editWordUnit').value = String(item.u || 1);
+        document.getElementById('editWordSpelling').value = item.w || '';
+        document.getElementById('editWordMeaning').value = item.m || '';
+        document.getElementById('editWordPolysemy').value = item.x || '';
+        document.getElementById('editWordExample').value = item.e || '';
+        document.getElementById('editWordCollocation').value = item.c || '';
+        document.getElementById('editWordDiff').value = item.d || '';
+        document.getElementById('editWordGrammar').value = item.g || '';
+      }
+      toggleEditModalBookUnit();
+      openModal('editWordModal');
+    }
+
+    function toggleEditModalBookUnit() {
+      const t = document.getElementById('editWordType').value;
+      document.getElementById('editBookUnitWrap').style.display = t === 'tb' ? 'flex' : 'none';
+    }
+
+    function saveWordEdit() {
+      const id = document.getElementById('editWordId').value;
+      const t = document.getElementById('editWordType').value;
+      const b = Number(document.getElementById('editWordBook').value) || 1;
+      const u = Number(document.getElementById('editWordUnit').value) || 1;
+      const w = document.getElementById('editWordSpelling').value.trim();
+      const m = document.getElementById('editWordMeaning').value.trim();
+      const x = document.getElementById('editWordPolysemy').value.trim();
+      const e = document.getElementById('editWordExample').value.trim();
+      const c = document.getElementById('editWordCollocation').value.trim();
+      const d = document.getElementById('editWordDiff').value.trim();
+      const g = document.getElementById('editWordGrammar').value.trim();
+
+      if (!w) {
+        showToast('⚠️ 单词拼写 (w) 不能为空');
+        return;
+      }
+
+      if (id) {
+        const target = state.words.find((item) => item.id === id);
+        if (target) {
+          target.t = t;
+          target.b = b;
+          target.u = u;
+          target.w = w;
+          target.m = m;
+          target.x = x;
+          target.e = e;
+          target.c = c;
+          target.d = d;
+          target.g = g;
+          target.pending = !m;
+        }
+        saveAppState();
+        closeModal('editWordModal');
+        renderAll();
+        showToast(`✅ 已保存对 "${w}" 的修改`);
+      } else {
+        const { addedCount, updatedCount } = upsertWordRecords([{ t, b, u, w, m, x, e, c, d, g }]);
+        saveAppState();
+        closeModal('editWordModal');
+        renderAll();
+        showToast(addedCount ? `✅ 已新增单词 "${w}"` : `✅ 已合并更新同组单词 "${w}"`);
+      }
+    }
+
+    /* ================= 13. JSON 备份恢复与配套 PWA 文件导出 ================= */
+    function openBackupModal() {
+      openModal('backupModal');
+    }
+
+    function exportJsonBackup() {
+      const dataStr = JSON.stringify(
+        {
+          app: 'shanji_v1',
+          exportedAt: new Date().toISOString(),
+          theme: state.theme,
+          viewMode: state.viewMode,
+          words: state.words,
+          reviews: state.reviews
+        },
+        null,
+        2
+      );
+      triggerTextDownload(`shanji_backup_${new Date().toISOString().slice(0, 10)}.json`, dataStr, 'application/json');
+      showToast('⬇️ 已导出 .json 词库备份文件');
+    }
+
+    async function importJsonBackup(inputEl) {
+      const file = inputEl.files && inputEl.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed || !Array.isArray(parsed.words)) {
+          showToast('❌ 备份文件格式无效：缺少 words 数组');
+          return;
+        }
+        state.words = parsed.words;
+        state.reviews = parsed.reviews || {};
+        saveAppState();
+        closeModal('backupModal');
+        renderAll();
+        showToast(`✅ 成功恢复 ${state.words.length} 个词条与复习进度`);
+      } catch (err) {
+        showToast('❌ 读取 JSON 备份失败：' + (err.message || '格式错误'));
+      } finally {
+        inputEl.value = '';
+      }
+    }
+
+    function openConfirmResetSeedModal() {
+      openConfirmDialog(
+        '♻️ 重置为初始 SEED 演示词库',
+        '确定要清空当前导入的所有词条，恢复为初始的 3 个演示词（abandon, object, appreciate）吗？',
+        () => {
+          state.words = JSON.parse(JSON.stringify(INITIAL_SEED_WORDS));
+          state.reviews = {};
+          expandedIds.clear();
+          checkedIds.clear();
+          quizStepMap.clear();
+          saveAppState();
+          closeModal('backupModal');
+          renderAll();
+          showToast('♻️ 已恢复为初始 3 个演示词');
+        }
+      );
+    }
+
+    function downloadCompanionFile(filename) {
+      if (filename === 'manifest.json') {
+        const manifestObj = {
+          name: '闪记 ShanJi - 高考英语智能背词',
+          short_name: '闪记',
+          description: '纯前端单页高考英语背单词与教研词库管理 PWA 应用',
+          start_url: './index.html',
+          scope: './',
+          display: 'standalone',
+          background_color: '#0b0b10',
+          theme_color: '#0a84ff',
+          icons: [
+            {
+              src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%230a84ff'/%3E%3Cpath d='M108 28L52 106h42l-10 58 56-78H98l10-58z' fill='%23ffd60a'/%3E%3C/svg%3E",
+              sizes: '192x192',
+              type: 'image/svg+xml',
+              purpose: 'any maskable'
+            }
+          ]
+        };
+        triggerTextDownload('manifest.json', JSON.stringify(manifestObj, null, 2), 'application/json');
+        showToast('⬇️ 已下载配套 manifest.json');
+      } else if (filename === 'sw.js') {
+        const swCode = [
+          "const CACHE_NAME = 'shanji-pwa-v1';",
+          "const ASSETS = ['./', './index.html', './manifest.json'];",
+          "self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(ASSETS)).catch(()=>{})); self.skipWaiting(); });",
+          "self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.map(k => k !== CACHE_NAME && caches.delete(k))))); self.clients.claim(); });",
+          "self.addEventListener('fetch', e => { if (e.request.method !== 'GET') return; e.respondWith(caches.match(e.request).then(r => r || fetch(e.request))); });"
+        ].join('\n');
+        triggerTextDownload('sw.js', swCode, 'application/javascript');
+        showToast('⬇️ 已下载配套 sw.js');
+      }
+    }
+
+    function triggerTextDownload(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType || 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /* ================= 14. 通用弹窗与 Toast 辅助函数 ================= */
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add('open');
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('open');
+    }
+
+    function openConfirmDialog(title, message, onConfirm) {
+      document.getElementById('confirmDialogTitle').textContent = title || '提示';
+      document.getElementById('confirmDialogMessage').textContent = message || '';
+      pendingConfirmCallback = typeof onConfirm === 'function' ? onConfirm : null;
+      document.getElementById('confirmCancelBtn').style.display = pendingConfirmCallback ? 'inline-flex' : 'none';
+      document.getElementById('confirmOkBtn').textContent = pendingConfirmCallback ? '确认执行' : '我知道了';
+      openModal('confirmDialogModal');
+    }
+
+    function executeConfirmedAction() {
+      const cb = pendingConfirmCallback;
+      pendingConfirmCallback = null;
+      closeModal('confirmDialogModal');
+      if (cb) cb();
+    }
+
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const item = document.createElement('div');
+      item.className = 'toast-item';
+      item.textContent = msg;
+      container.appendChild(item);
+      setTimeout(() => {
+        if (item.parentNode) item.parentNode.removeChild(item);
+      }, 3200);
+    }
+
+    // 注册 PWA Service Worker（在独立部署时生效，在沙盒 iframe 下优雅静默降级）
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
+          // 沙盒预览环境或未放置同级 sw.js 时静默忽略
+        });
+      });
+    }
+
+    // 启动初始化
+    (function initShanJiApp() {
+      loadAppState();
+      setTheme(state.theme || 'dark');
+      setViewMode(state.viewMode || 'phone');
+      if (state.customFontSize) {
+        document.documentElement.style.setProperty('--custom-fs', state.customFontSize + 'px');
+        updateFontIndicator();
+      }
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
